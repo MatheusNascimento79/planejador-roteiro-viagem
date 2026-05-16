@@ -60,7 +60,7 @@ Para habilitar edição compartilhada entre pessoas:
 
 Depois disso:
 
-- `Salvar` grava o JSON compartilhado no Vercel Blob.
+- `Salvar` grava o JSON compartilhado no Vercel Blob privado, via `/api/roteiro`.
 - Ao abrir o app, ele tenta carregar o roteiro compartilhado.
 - `Baixar JSON` salva uma cópia local na máquina.
 - `Exportar` salva um `.md` na máquina do operador.

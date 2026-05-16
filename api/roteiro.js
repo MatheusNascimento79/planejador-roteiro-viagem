@@ -15,7 +15,7 @@ async function streamToText(stream) {
 export default async function handler(req, res) {
   if (req.method === "GET") {
     try {
-      const result = await get(PATHNAME, { access: "public" });
+      const result = await get(PATHNAME, { access: "private" });
       if (!result || result.statusCode !== 200 || !result.stream) return send(res, 404, { data: null });
       const data = await streamToText(result.stream);
       return send(res, 200, JSON.parse(data));
@@ -40,7 +40,7 @@ export default async function handler(req, res) {
       };
 
       const blob = await put(PATHNAME, JSON.stringify(payload, null, 2), {
-        access: "public",
+        access: "private",
         allowOverwrite: true,
         addRandomSuffix: false,
         contentType: "application/json; charset=utf-8",
