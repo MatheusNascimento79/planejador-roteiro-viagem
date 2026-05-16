@@ -264,9 +264,14 @@
 
     .item-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 108px 36px;
+      grid-template-columns: minmax(0, 1fr) 108px auto;
       gap: 8px;
       align-items: start;
+    }
+
+    .item-actions {
+      display: flex;
+      gap: 4px;
     }
 
     .item-row textarea {
@@ -493,7 +498,7 @@
       }
 
       .item-row {
-        grid-template-columns: minmax(0, 1fr) 112px 36px;
+        grid-template-columns: minmax(0, 1fr) 112px auto;
       }
 
       .actions {
@@ -956,7 +961,11 @@
         <div class="item-row">
           <textarea data-index="${stopIndex}" data-item-index="${itemIndex}" placeholder="Ex.: Hotel R$ 3.689 + R$ 793 taxas">${escapeHtml(item.text)}</textarea>
           <span class="item-amount" data-item-total="${stopIndex}:${itemIndex}">${money.format(itemAmount(item.text))}</span>
-          <button class="icon-btn" data-action="delete-item" data-index="${stopIndex}" data-item-index="${itemIndex}" title="Remover item">×</button>
+          <div class="item-actions">
+            <button class="icon-btn" data-action="item-up" data-index="${stopIndex}" data-item-index="${itemIndex}" title="Subir item">↑</button>
+            <button class="icon-btn" data-action="item-down" data-index="${stopIndex}" data-item-index="${itemIndex}" title="Descer item">↓</button>
+            <button class="icon-btn" data-action="delete-item" data-index="${stopIndex}" data-item-index="${itemIndex}" title="Remover item">×</button>
+          </div>
         </div>
       `;
     }
@@ -1199,6 +1208,22 @@
       render();
     }
 
+    function moveItem(index, itemIndex, direction) {
+      const items = data.stops[index].items || [];
+      const item = items[itemIndex];
+      if (!item) return;
+      const sameCategoryIndexes = items
+        .map((candidate, candidateIndex) => ({ candidate, candidateIndex }))
+        .filter(entry => entry.candidate.category === item.category)
+        .map(entry => entry.candidateIndex);
+      const position = sameCategoryIndexes.indexOf(itemIndex);
+      const swapIndex = sameCategoryIndexes[position + direction];
+      if (swapIndex === undefined) return;
+      [items[itemIndex], items[swapIndex]] = [items[swapIndex], items[itemIndex]];
+      scheduleAutoSave();
+      render();
+    }
+
     function escapeHtml(value) {
       return String(value ?? "")
         .replaceAll("&", "&amp;")
@@ -1217,6 +1242,8 @@
       if (button.dataset.action === "delete") deleteStop(index);
       if (button.dataset.action === "add-item") addItem(index, button.dataset.category);
       if (button.dataset.action === "delete-item") deleteItem(index, Number(button.dataset.itemIndex));
+      if (button.dataset.action === "item-up") moveItem(index, Number(button.dataset.itemIndex), -1);
+      if (button.dataset.action === "item-down") moveItem(index, Number(button.dataset.itemIndex), 1);
     });
 
     ["tripName", "travelers", "eurRate", "currency"].forEach(key => {
