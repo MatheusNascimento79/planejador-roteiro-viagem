@@ -1,0 +1,1220 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Planejador gratuito de roteiro de viagem com custos, auto-save local, importação JSON e exportação Markdown.">
+  <title>Planejador de Roteiro de Viagem</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17201d;
+      --muted: #60706b;
+      --line: #d8dfdb;
+      --paper: #fbfaf6;
+      --panel: #ffffff;
+      --teal: #0d766e;
+      --coral: #c8553d;
+      --gold: #b57a10;
+      --mist: #e8f2ef;
+      --rose: #fff0ec;
+      --sun: #fff5d8;
+      --shadow: 0 16px 38px rgba(23, 32, 29, .08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+    }
+
+    button, input, textarea, select {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 9px 12px;
+      cursor: pointer;
+      min-height: 40px;
+    }
+
+    button:hover { border-color: var(--teal); }
+    button.primary {
+      background: var(--teal);
+      border-color: var(--teal);
+      color: #fff;
+    }
+
+    .app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: rgba(251, 250, 246, .94);
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      backdrop-filter: blur(12px);
+    }
+
+    .topbar {
+      width: 100%;
+      max-width: none;
+      margin: 0 auto;
+      padding: 16px 22px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 3.5vw, 42px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: end;
+    }
+
+    main {
+      width: 100%;
+      max-width: none;
+      margin: 0 auto;
+      padding: 22px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 22px;
+      line-height: 1.15;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      min-width: 1320px;
+    }
+
+    th:nth-child(1), td:nth-child(1) { width: 150px; }
+    th:nth-child(2), td:nth-child(2),
+    th:nth-child(3), td:nth-child(3) { width: 150px; }
+    th:nth-child(4), td:nth-child(4) { width: 80px; }
+    th:nth-child(5), td:nth-child(5) { width: 720px; }
+    th:nth-child(6), td:nth-child(6) { width: 140px; }
+    th:nth-child(7), td:nth-child(7) { width: 116px; }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      background: #f6f5ef;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      padding: 8px;
+      color: var(--ink);
+      background: #f8faf8;
+      outline: none;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--teal);
+      background: #fff;
+    }
+
+    textarea {
+      min-height: 62px;
+      resize: vertical;
+      line-height: 1.3;
+    }
+
+    .items-cell {
+      display: grid;
+      gap: 14px;
+    }
+
+    .item-group {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfb;
+      overflow: hidden;
+    }
+
+    .item-group-head {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 9px 10px;
+      background: #f1f6f4;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .item-group-head strong {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--teal);
+    }
+
+    .item-group-head span,
+    .item-amount {
+      color: var(--muted);
+      font-weight: 800;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    .item-list {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+    }
+
+    .item-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 108px 36px;
+      gap: 8px;
+      align-items: start;
+    }
+
+    .item-row textarea {
+      min-height: 54px;
+    }
+
+    .total-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: var(--mist);
+      color: var(--teal);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .number {
+      min-width: 112px;
+    }
+
+    .date-cell {
+      min-width: 142px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .icon-btn {
+      width: 36px;
+      min-height: 36px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+    }
+
+    .side {
+      display: grid;
+      grid-template-columns: minmax(280px, .9fr) minmax(280px, .8fr) minmax(340px, 1.1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel-body {
+      padding: 16px;
+    }
+
+    .checks {
+      display: grid;
+      gap: 10px;
+    }
+
+    .check {
+      border-left: 4px solid var(--teal);
+      background: var(--mist);
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .check.warn {
+      border-left-color: var(--gold);
+      background: var(--sun);
+    }
+
+    .check.danger {
+      border-left-color: var(--coral);
+      background: var(--rose);
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .stop {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .stop-date {
+      font-weight: 800;
+      color: var(--teal);
+      line-height: 1.2;
+    }
+
+    .stop h3 {
+      margin: 0 0 5px;
+      font-size: 16px;
+    }
+
+    .stop p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .export-box {
+      white-space: pre-wrap;
+      min-height: 180px;
+      max-height: 360px;
+      overflow: auto;
+      background: #16211e;
+      color: #eff8f4;
+      padding: 14px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .trip-settings {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    @media (max-width: 1080px) {
+      .side { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+    }
+
+    @media (max-width: 720px) {
+      .topbar { grid-template-columns: 1fr; }
+      .toolbar { justify-content: start; }
+      main { padding: 14px; }
+      .metrics { grid-template-columns: 1fr; }
+      .trip-settings { grid-template-columns: 1fr 1fr; }
+      .stop { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      .table-wrap {
+        overflow-x: auto;
+        overflow-y: visible;
+      }
+
+      table,
+      thead,
+      tbody,
+      tr,
+      th,
+      td {
+        display: block;
+        width: 100% !important;
+        min-width: 0;
+      }
+
+      thead {
+        display: none;
+      }
+
+      table {
+        min-width: 0;
+      }
+
+      tbody {
+        display: grid;
+        gap: 12px;
+        padding: 12px;
+      }
+
+      tr {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 12px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      td {
+        border-bottom: 0;
+        padding: 0;
+      }
+
+      td::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 5px;
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        font-weight: 800;
+      }
+
+      td[data-label="Noites"] {
+        display: block;
+        min-width: 0;
+        margin-right: 10px;
+      }
+
+      td[data-label="Itens"],
+      td[data-label="Acoes"] {
+        grid-column: 1 / -1;
+      }
+
+      td[data-label="Acoes"]::before {
+        display: none;
+      }
+
+      textarea {
+        min-height: 80px;
+      }
+
+      .item-row {
+        grid-template-columns: minmax(0, 1fr) 112px 36px;
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 620px) {
+      tr {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header>
+      <div class="topbar">
+        <div>
+          <h1>Planejador de Roteiro</h1>
+          <p class="subtitle">Planejador gratuito de roteiro, com datas, custos, pendências, auto-save local e exportação em Markdown.</p>
+        </div>
+        <div class="toolbar">
+          <button id="addStop" class="primary" title="Adicionar destino">+ Destino</button>
+          <button id="saveFile" title="Salvar roteiro em arquivo">Salvar</button>
+          <button id="openFile" title="Abrir roteiro salvo">Abrir</button>
+          <button id="exportJson" title="Exportar roteiro em Markdown">Exportar</button>
+          <button id="resetData" title="Voltar aos dados iniciais">Reset</button>
+          <input id="fileInput" type="file" accept="application/json,.json" hidden>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section>
+        <div class="panel-body">
+          <div class="trip-settings">
+            <div class="field">
+              <label for="tripName">Nome</label>
+              <input id="tripName">
+            </div>
+            <div class="field">
+              <label for="travelers">Pessoas</label>
+              <input id="travelers" type="number" min="1">
+            </div>
+            <div class="field">
+              <label for="eurRate">Euro usado no rascunho</label>
+              <input id="eurRate" type="number" min="0" step="0.01">
+            </div>
+            <div class="field">
+              <label for="currency">Moeda de controle</label>
+              <input id="currency">
+            </div>
+          </div>
+          <div class="metrics" id="metrics"></div>
+        </div>
+      </section>
+
+      <div class="workspace">
+        <section>
+          <div class="section-head">
+            <h2>Roteiro Editável</h2>
+            <span id="saveState" class="subtitle">Salvo no navegador</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Destino</th>
+                  <th>Entrada</th>
+                  <th>Saída</th>
+                  <th>Noites</th>
+                  <th>Itens</th>
+                  <th>Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="side">
+          <section>
+            <div class="section-head">
+              <h2>Validações</h2>
+            </div>
+            <div class="panel-body checks" id="checks"></div>
+          </section>
+
+          <section>
+            <div class="section-head">
+              <h2>Linha do Tempo</h2>
+            </div>
+            <div class="panel-body timeline" id="timeline"></div>
+          </section>
+
+          <section>
+            <div class="section-head">
+              <h2>Resumo Técnico</h2>
+            </div>
+            <div class="panel-body">
+              <div class="export-box" id="exportBox"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const storageKey = "viagem-europa-2026-v3";
+
+    const initialData = {
+      tripName: "Meu roteiro de viagem",
+      travelers: 2,
+      eurRate: 5.5,
+      currency: "BRL",
+      stops: [
+        {
+          city: "Primeiro destino",
+          start: "",
+          end: "",
+          items: [
+            { category: "transport", text: "Chegada, deslocamentos e passagens." },
+            { category: "hotel", text: "Hotel R$ 0 + R$ 0 taxas" },
+            { category: "tour", text: "Passeio ou ingresso R$ 0 por pessoa" }
+          ]
+        }
+      ]
+    };
+
+    let data = loadData();
+
+    const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+    const shortDate = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" });
+    const longDate = new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
+    const itemCategories = [
+      ["transport", "Transporte"],
+      ["hotel", "Hotel"],
+      ["tour", "Passeios"]
+    ];
+    let autoSaveTimer = null;
+
+    const el = {
+      tripName: document.querySelector("#tripName"),
+      travelers: document.querySelector("#travelers"),
+      eurRate: document.querySelector("#eurRate"),
+      currency: document.querySelector("#currency"),
+      metrics: document.querySelector("#metrics"),
+      rows: document.querySelector("#rows"),
+      checks: document.querySelector("#checks"),
+      timeline: document.querySelector("#timeline"),
+      exportBox: document.querySelector("#exportBox"),
+      saveState: document.querySelector("#saveState")
+    };
+
+    function loadData() {
+      const saved = localStorage.getItem(storageKey);
+      if (!saved) return normalizeData(structuredClone(initialData));
+      try {
+        return normalizeData(JSON.parse(saved));
+      } catch {
+        return normalizeData(structuredClone(initialData));
+      }
+    }
+
+    function normalizeData(source) {
+      source.stops = (source.stops || []).map((stop) => {
+        const normalized = { ...stop };
+        if (!Array.isArray(normalized.items)) {
+          normalized.items = legacyItems(normalized, source);
+        }
+        normalized.items = normalized.items.map(item => ({
+          category: item.category || "tour",
+          text: item.text || ""
+        }));
+        return normalized;
+      });
+      return source;
+    }
+
+    function legacyItems(stop, trip) {
+      const logistics = splitSentences(stop.logistics || "");
+      const notes = splitSentences(stop.notes || "");
+      const items = [
+        ...logistics.map(text => ({
+          category: /hotel|novotel|café|check-in/i.test(text) ? "hotel" : "transport",
+          text
+        })),
+        ...notes.map(text => ({ category: "tour", text }))
+      ].filter(item => item.text.trim() && !/alternativa|opção|opcao|total .*anotado|total final/i.test(item.text));
+      const known = items.reduce((sum, item) => sum + itemAmountFor(item.text, trip.travelers, trip.eurRate), 0);
+      const target = numberValue(stop.minCost);
+      if (target > known) items.push({ category: "tour", text: `Ajuste para total planejado anterior: R$ ${Math.round(target - known).toLocaleString("pt-BR")}` });
+      return items;
+    }
+
+    function splitSentences(text) {
+      return String(text)
+        .split(/(?<=[.!?])\s+|;\s+/)
+        .map(part => part.trim())
+        .filter(Boolean);
+    }
+
+    function saveData() {
+      localStorage.setItem(storageKey, JSON.stringify(data));
+      el.saveState.textContent = "Salvo " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    }
+
+    function scheduleAutoSave() {
+      el.saveState.textContent = "Salvando...";
+      window.clearTimeout(autoSaveTimer);
+      autoSaveTimer = window.setTimeout(() => {
+        localStorage.setItem(storageKey, JSON.stringify(data));
+        el.saveState.textContent = "Auto-save local " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      }, 350);
+    }
+
+    function flushAutoSave() {
+      window.clearTimeout(autoSaveTimer);
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    }
+
+    function safeFileName(value) {
+      return String(value || "viagem-europa-2026")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-+|-+$/g, "")
+        .toLowerCase() || "viagem-europa-2026";
+    }
+
+    function saveToFile() {
+      const payload = {
+        app: "viagem-europa-2026",
+        version: 1,
+        savedAt: new Date().toISOString(),
+        data
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${safeFileName(data.tripName)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      el.saveState.textContent = "Arquivo salvo";
+    }
+
+    function importFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          const imported = parsed.data || parsed;
+          if (!imported || !Array.isArray(imported.stops)) throw new Error("Arquivo sem roteiro.");
+          data = normalizeData(imported);
+          saveData();
+          render();
+          el.saveState.textContent = "Arquivo importado";
+        } catch (error) {
+          alert("Não consegui abrir este arquivo. Use um JSON salvo por este roteiro.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function parseDate(value) {
+      if (!value) return null;
+      const date = new Date(value + "T12:00:00");
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function dayDiff(start, end) {
+      if (!start || !end) return 0;
+      return Math.round((end - start) / 86400000);
+    }
+
+    function numberValue(value) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function parseMoneyNumber(value) {
+      const clean = String(value).replace(/\./g, "").replace(",", ".");
+      const parsed = Number(clean);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function itemAmount(text) {
+      return itemAmountFor(text, data.travelers, data.eurRate);
+    }
+
+    function itemAmountFor(text, travelers, eurRate) {
+      const value = String(text || "");
+      if (/não somar|nao somar|alternativa|opção|opcao/i.test(value)) return 0;
+      const multiplier = /por pessoa|p\/pessoa|cada pessoa|por pax/i.test(value) ? Math.max(1, numberValue(travelers)) : 1;
+      const pricedPart = value.includes("=") ? value.split("=").at(-1) : value;
+      const hasBrl = /R\$/i.test(pricedPart);
+      let total = 0;
+      for (const match of pricedPart.matchAll(/R\$\s*([\d.]+(?:,\d{1,2})?)/gi)) total += parseMoneyNumber(match[1]);
+      if (!hasBrl) {
+        const euroMatches = Array.from(pricedPart.matchAll(/€\s*([\d.]+(?:,\d{1,2})?)/gi));
+        const selected = /entre|de .* a /i.test(pricedPart) ? euroMatches.slice(-1) : euroMatches;
+        for (const match of selected) total += parseMoneyNumber(match[1]) * numberValue(eurRate);
+      }
+      return total * multiplier;
+    }
+
+    function stopTotal(stop) {
+      return (stop.items || []).reduce((sum, item) => sum + itemAmount(item.text), 0);
+    }
+
+    function categoryTotal(stop, category) {
+      return (stop.items || [])
+        .filter(item => item.category === category)
+        .reduce((sum, item) => sum + itemAmount(item.text), 0);
+    }
+
+    function stopNights(stop) {
+      return Math.max(0, dayDiff(parseDate(stop.start), parseDate(stop.end)));
+    }
+
+    function tripDays() {
+      const dates = data.stops.flatMap(stop => [parseDate(stop.start), parseDate(stop.end)]).filter(Boolean);
+      if (!dates.length) return 0;
+      const min = new Date(Math.min(...dates));
+      const max = new Date(Math.max(...dates));
+      return Math.max(1, dayDiff(min, max) + 1);
+    }
+
+    function totals() {
+      return data.stops.reduce((acc, stop) => {
+        const total = stopTotal(stop);
+        acc.min += total;
+        acc.max += total;
+        acc.nights += stopNights(stop);
+        return acc;
+      }, { min: 0, max: 0, nights: 0 });
+    }
+
+    function renderSettings() {
+      el.tripName.value = data.tripName;
+      el.travelers.value = data.travelers;
+      el.eurRate.value = data.eurRate;
+      el.currency.value = data.currency;
+    }
+
+    function renderMetrics() {
+      const sum = totals();
+      const perPersonMin = sum.min / Math.max(1, data.travelers);
+      const perPersonMax = sum.max / Math.max(1, data.travelers);
+      const range = sum.min === sum.max ? money.format(sum.min) : `${money.format(sum.min)} - ${money.format(sum.max)}`;
+      const perPerson = sum.min === sum.max ? money.format(perPersonMin) : `${money.format(perPersonMin)} - ${money.format(perPersonMax)}`;
+      const cities = data.stops.filter(stop => stop.city.trim()).length;
+
+      el.metrics.innerHTML = [
+        ["Total estimado", range],
+        ["Por pessoa", perPerson],
+        ["Dias de viagem", `${tripDays()} dias`],
+        ["Noites planejadas", `${sum.nights} noites`],
+        ["Destinos", `${cities} paradas`]
+      ].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join("");
+    }
+
+    function renderRows() {
+      el.rows.innerHTML = data.stops.map((stop, index) => `
+        <tr>
+          <td data-label="Destino"><input data-index="${index}" data-key="city" value="${escapeHtml(stop.city)}"></td>
+          <td data-label="Entrada" class="date-cell"><input type="date" data-index="${index}" data-key="start" value="${stop.start}"></td>
+          <td data-label="Saida" class="date-cell"><input type="date" data-index="${index}" data-key="end" value="${stop.end}"></td>
+          <td data-label="Noites"><strong>${stopNights(stop)}</strong></td>
+          <td data-label="Itens">
+            <div class="items-cell">
+              ${renderItemGroups(stop, index)}
+            </div>
+          </td>
+          <td data-label="Total"><span class="total-pill" data-stop-total="${index}">${money.format(stopTotal(stop))}</span></td>
+          <td data-label="Acoes">
+            <div class="actions">
+              <button class="icon-btn" data-action="up" data-index="${index}" title="Subir">↑</button>
+              <button class="icon-btn" data-action="down" data-index="${index}" title="Descer">↓</button>
+              <button class="icon-btn" data-action="delete" data-index="${index}" title="Remover">×</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function renderItemGroups(stop, stopIndex) {
+      return itemCategories.map(([category, label]) => {
+        const items = (stop.items || [])
+          .map((item, itemIndex) => ({ ...item, itemIndex }))
+          .filter(item => item.category === category);
+        return `
+          <div class="item-group" data-stop-index="${stopIndex}" data-category="${category}">
+            <div class="item-group-head">
+              <strong>${label}</strong>
+              <span data-category-total="${stopIndex}:${category}">${money.format(categoryTotal(stop, category))}</span>
+              <button class="icon-btn" data-action="add-item" data-index="${stopIndex}" data-category="${category}" title="Adicionar item">+</button>
+            </div>
+            <div class="item-list">
+              ${items.length ? items.map(item => renderItemRow(stopIndex, item.itemIndex, item)).join("") : `<p class="subtitle">Sem itens ainda.</p>`}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderItemRow(stopIndex, itemIndex, item) {
+      return `
+        <div class="item-row">
+          <textarea data-index="${stopIndex}" data-item-index="${itemIndex}" placeholder="Ex.: Hotel R$ 3.689 + R$ 793 taxas">${escapeHtml(item.text)}</textarea>
+          <span class="item-amount" data-item-total="${stopIndex}:${itemIndex}">${money.format(itemAmount(item.text))}</span>
+          <button class="icon-btn" data-action="delete-item" data-index="${stopIndex}" data-item-index="${itemIndex}" title="Remover item">×</button>
+        </div>
+      `;
+    }
+
+    function collectChecks() {
+      const checks = [];
+      const sorted = data.stops.map((stop, index) => ({ stop, index })).sort((a, b) => (a.stop.start || "").localeCompare(b.stop.start || ""));
+
+      data.stops.forEach((stop) => {
+        const start = parseDate(stop.start);
+        const end = parseDate(stop.end);
+        if (!stop.city.trim()) checks.push(["danger", "Há uma parada sem destino preenchido."]);
+        if (!start || !end) checks.push(["danger", `${stop.city || "Parada"} precisa de data de entrada e saída.`]);
+        if (start && end && end < start) checks.push(["danger", `${stop.city}: saída antes da entrada.`]);
+        const allItemsText = (stop.items || []).map(item => item.text).join(" ");
+        if (!stop.items?.length) checks.push(["warn", `${stop.city}: ainda não tem itens de custo.`]);
+        if (/hotel ainda sem valor|sem valor/i.test(allItemsText)) checks.push(["warn", `${stop.city}: hotel ainda sem custo confirmado.`]);
+        if (/a definir|confirmar|ideia/i.test(allItemsText)) checks.push(["warn", `${stop.city}: existe decisão pendente nas notas.`]);
+      });
+
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1].stop;
+        const current = sorted[i].stop;
+        const gap = dayDiff(parseDate(prev.end), parseDate(current.start));
+        if (gap < 0) checks.push(["danger", `${current.city} começa antes de ${prev.city} terminar.`]);
+        if (gap > 0) checks.push(["warn", `Há ${gap} dia(s) sem destino entre ${prev.city} e ${current.city}.`]);
+      }
+
+      checks.push(["ok", "Datas principais formam uma sequência editável. Ajustes aparecem aqui automaticamente."]);
+      return checks;
+    }
+
+    function renderChecks() {
+      const checks = collectChecks();
+      el.checks.innerHTML = checks.map(([type, text]) => `<div class="check ${type === "ok" ? "" : type}">${escapeHtml(text)}</div>`).join("");
+    }
+
+    function renderTimeline() {
+      const sorted = [...data.stops].sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+      el.timeline.innerHTML = sorted.map(stop => {
+        const start = parseDate(stop.start);
+        const end = parseDate(stop.end);
+        const dates = start && end ? `${shortDate.format(start)} → ${shortDate.format(end)}` : "sem data";
+        const detail = start ? `${longDate.format(start)} · ${stopNights(stop)} noite(s)` : `${stopNights(stop)} noite(s)`;
+        return `
+          <article class="stop">
+            <div class="stop-date">${dates}</div>
+            <div>
+              <h3>${escapeHtml(stop.city)}</h3>
+              <p>${escapeHtml(detail)} · ${money.format(stopTotal(stop))}</p>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderExport() {
+      const sum = totals();
+      const payload = {
+        viagem: data.tripName,
+        pessoas: data.travelers,
+        total_estimado_min: sum.min,
+        total_estimado_max: sum.max,
+        destinos: data.stops.map(stop => ({
+          destino: stop.city,
+          entrada: stop.start,
+          saida: stop.end,
+          noites: stopNights(stop),
+          custo_total: stopTotal(stop),
+          itens: (stop.items || []).map(item => ({
+            categoria: itemCategories.find(([key]) => key === item.category)?.[1] || item.category,
+            texto: item.text,
+            valor_lido: itemAmount(item.text)
+          }))
+        }))
+      };
+      el.exportBox.textContent = JSON.stringify(payload, null, 2);
+    }
+
+    function mdEscape(value) {
+      return String(value ?? "").replace(/\|/g, "\\|").trim();
+    }
+
+    function formatDate(value) {
+      const date = parseDate(value);
+      return date ? shortDate.format(date) : "sem data";
+    }
+
+    function buildMarkdownExport() {
+      const sum = totals();
+      const exportedAt = new Date().toLocaleString("pt-BR");
+      const checks = collectChecks();
+      const lines = [
+        `# ${data.tripName || "Viagem Europa 2026"}`,
+        "",
+        `Exportado em: ${exportedAt}`,
+        "",
+        "## Resumo",
+        "",
+        `- Pessoas: ${data.travelers}`,
+        `- Moeda de controle: ${data.currency}`,
+        `- Euro usado no rascunho: ${data.eurRate}`,
+        `- Total estimado: ${money.format(sum.min)}`,
+        `- Custo por pessoa: ${money.format(sum.min / Math.max(1, data.travelers))}`,
+        `- Dias de viagem: ${tripDays()} dias`,
+        `- Noites planejadas: ${sum.nights} noites`,
+        `- Destinos: ${data.stops.length}`,
+        "",
+        "## Linha do tempo",
+        "",
+        "| Entrada | Saída | Destino | Noites | Total |",
+        "| --- | --- | --- | ---: | ---: |",
+        ...[...data.stops]
+          .sort((a, b) => (a.start || "").localeCompare(b.start || ""))
+          .map(stop => `| ${formatDate(stop.start)} | ${formatDate(stop.end)} | ${mdEscape(stop.city)} | ${stopNights(stop)} | ${money.format(stopTotal(stop))} |`),
+        "",
+        "## Validações e pendências",
+        "",
+        ...checks.map(([type, text]) => `- ${type.toUpperCase()}: ${text}`),
+        "",
+        "## Roteiro detalhado",
+        ""
+      ];
+
+      data.stops.forEach((stop, index) => {
+        lines.push(
+          `### ${index + 1}. ${stop.city || "Destino sem nome"}`,
+          "",
+          `- Período: ${formatDate(stop.start)} a ${formatDate(stop.end)}`,
+          `- Noites: ${stopNights(stop)}`,
+          `- Total do destino: ${money.format(stopTotal(stop))}`,
+          ""
+        );
+
+        itemCategories.forEach(([category, label]) => {
+          const items = (stop.items || []).filter(item => item.category === category);
+          lines.push(`#### ${label}`, "");
+          if (!items.length) {
+            lines.push("- Sem itens.", "");
+            return;
+          }
+          lines.push("| Item | Valor lido |", "| --- | ---: |");
+          items.forEach(item => {
+            lines.push(`| ${mdEscape(item.text || "Item sem descrição")} | ${money.format(itemAmount(item.text))} |`);
+          });
+          lines.push(`| **Subtotal ${label}** | **${money.format(categoryTotal(stop, category))}** |`, "");
+        });
+      });
+
+      return lines.join("\n");
+    }
+
+    function exportMarkdownFile() {
+      const markdown = buildMarkdownExport();
+      const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${safeFileName(data.tripName)}-roteiro.md`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      el.saveState.textContent = "Markdown exportado";
+    }
+
+    function render() {
+      renderSettings();
+      renderMetrics();
+      renderRows();
+      renderChecks();
+      renderTimeline();
+      renderExport();
+    }
+
+    function renderLivePanels() {
+      renderMetrics();
+      renderChecks();
+      renderTimeline();
+      renderExport();
+    }
+
+    function updateVisibleTotals(stopIndex, itemIndex) {
+      const stop = data.stops[stopIndex];
+      const item = stop?.items?.[itemIndex];
+      if (!stop || !item) return;
+      const itemEl = document.querySelector(`[data-item-total="${stopIndex}:${itemIndex}"]`);
+      if (itemEl) itemEl.textContent = money.format(itemAmount(item.text));
+      const stopEl = document.querySelector(`[data-stop-total="${stopIndex}"]`);
+      if (stopEl) stopEl.textContent = money.format(stopTotal(stop));
+      for (const [category] of itemCategories) {
+        const categoryEl = document.querySelector(`[data-category-total="${stopIndex}:${category}"]`);
+        if (categoryEl) categoryEl.textContent = money.format(categoryTotal(stop, category));
+      }
+    }
+
+    function updateStop(target) {
+      const index = Number(target.dataset.index);
+      const itemIndex = Number(target.dataset.itemIndex);
+      if (Number.isInteger(index) && Number.isInteger(itemIndex)) {
+        data.stops[index].items[itemIndex].text = target.value;
+        scheduleAutoSave();
+        updateVisibleTotals(index, itemIndex);
+        renderLivePanels();
+        return;
+      }
+      const key = target.dataset.key;
+      if (!Number.isInteger(index) || !key) return;
+      data.stops[index][key] = target.type === "number" ? numberValue(target.value) : target.value;
+      scheduleAutoSave();
+      if (key === "start" || key === "end") render();
+      else renderLivePanels();
+    }
+
+    function moveStop(index, direction) {
+      const next = index + direction;
+      if (next < 0 || next >= data.stops.length) return;
+      const [item] = data.stops.splice(index, 1);
+      data.stops.splice(next, 0, item);
+      scheduleAutoSave();
+      render();
+    }
+
+    function deleteStop(index) {
+      data.stops.splice(index, 1);
+      scheduleAutoSave();
+      render();
+    }
+
+    function addItem(index, category) {
+      data.stops[index].items = data.stops[index].items || [];
+      data.stops[index].items.push({ category, text: "" });
+      scheduleAutoSave();
+      render();
+    }
+
+    function deleteItem(index, itemIndex) {
+      data.stops[index].items.splice(itemIndex, 1);
+      scheduleAutoSave();
+      render();
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    document.querySelector("#rows").addEventListener("input", (event) => updateStop(event.target));
+    document.querySelector("#rows").addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      const index = Number(button.dataset.index);
+      if (button.dataset.action === "up") moveStop(index, -1);
+      if (button.dataset.action === "down") moveStop(index, 1);
+      if (button.dataset.action === "delete") deleteStop(index);
+      if (button.dataset.action === "add-item") addItem(index, button.dataset.category);
+      if (button.dataset.action === "delete-item") deleteItem(index, Number(button.dataset.itemIndex));
+    });
+
+    ["tripName", "travelers", "eurRate", "currency"].forEach(key => {
+      el[key].addEventListener("input", (event) => {
+        data[key] = key === "travelers" || key === "eurRate" ? numberValue(event.target.value) : event.target.value;
+        scheduleAutoSave();
+        render();
+      });
+    });
+
+    document.querySelector("#addStop").addEventListener("click", () => {
+      data.stops.push({
+        city: "Novo destino",
+        start: "",
+        end: "",
+        items: [
+          { category: "transport", text: "" },
+          { category: "hotel", text: "" },
+          { category: "tour", text: "" }
+        ]
+      });
+      scheduleAutoSave();
+      render();
+    });
+
+    document.querySelector("#resetData").addEventListener("click", () => {
+      if (!confirm("Voltar ao modelo inicial?")) return;
+      data = structuredClone(initialData);
+      saveData();
+      render();
+    });
+
+    document.querySelector("#exportJson").addEventListener("click", exportMarkdownFile);
+    document.querySelector("#saveFile").addEventListener("click", saveToFile);
+    document.querySelector("#openFile").addEventListener("click", () => document.querySelector("#fileInput").click());
+    document.querySelector("#fileInput").addEventListener("change", (event) => {
+      importFile(event.target.files[0]);
+      event.target.value = "";
+    });
+    window.addEventListener("beforeunload", flushAutoSave);
+
+    render();
+  </script>
+</body>
+</html>
