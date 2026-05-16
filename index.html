@@ -518,8 +518,9 @@
         </div>
         <div class="toolbar">
           <button id="addStop" class="primary" title="Adicionar destino">+ Destino</button>
-          <button id="saveFile" title="Salvar roteiro em arquivo">Salvar</button>
-          <button id="openFile" title="Abrir roteiro salvo">Abrir</button>
+          <button id="saveShared" title="Salvar roteiro compartilhado">Salvar</button>
+          <button id="downloadJson" title="Baixar roteiro em JSON">Baixar JSON</button>
+          <button id="openFile" title="Abrir JSON salvo">Abrir</button>
           <button id="exportJson" title="Exportar roteiro em Markdown">Exportar</button>
           <button id="resetData" title="Voltar aos dados iniciais">Reset</button>
           <input id="fileInput" type="file" accept="application/json,.json" hidden>
@@ -744,6 +745,49 @@
       link.remove();
       URL.revokeObjectURL(url);
       el.saveState.textContent = "Arquivo salvo";
+    }
+
+    async function loadSharedData() {
+      try {
+        const response = await fetch("/api/roteiro", { cache: "no-store" });
+        if (response.status === 404) {
+          el.saveState.textContent = "Roteiro local";
+          return;
+        }
+        if (!response.ok) throw new Error("Falha ao carregar roteiro compartilhado.");
+        const payload = await response.json();
+        if (!payload?.data?.stops) {
+          el.saveState.textContent = "Roteiro local";
+          return;
+        }
+        data = normalizeData(payload.data);
+        flushAutoSave();
+        render();
+        el.saveState.textContent = "Compartilhado carregado";
+      } catch (error) {
+        el.saveState.textContent = "Auto-save local ativo";
+      }
+    }
+
+    async function saveSharedData() {
+      flushAutoSave();
+      el.saveState.textContent = "Salvando compartilhado...";
+      try {
+        const response = await fetch("/api/roteiro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data })
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.message || "Falha ao salvar compartilhado.");
+        }
+        const payload = await response.json();
+        el.saveState.textContent = "Compartilhado salvo " + new Date(payload.savedAt || Date.now()).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      } catch (error) {
+        el.saveState.textContent = "Falha no compartilhado; salvo local";
+        alert("Não consegui salvar no JSON compartilhado. Na Vercel, conecte um Vercel Blob Store ao projeto.");
+      }
     }
 
     function importFile(file) {
@@ -1206,7 +1250,8 @@
     });
 
     document.querySelector("#exportJson").addEventListener("click", exportMarkdownFile);
-    document.querySelector("#saveFile").addEventListener("click", saveToFile);
+    document.querySelector("#saveShared").addEventListener("click", saveSharedData);
+    document.querySelector("#downloadJson").addEventListener("click", saveToFile);
     document.querySelector("#openFile").addEventListener("click", () => document.querySelector("#fileInput").click());
     document.querySelector("#fileInput").addEventListener("change", (event) => {
       importFile(event.target.files[0]);
@@ -1215,6 +1260,7 @@
     window.addEventListener("beforeunload", flushAutoSave);
 
     render();
+    loadSharedData();
   </script>
 </body>
 </html>

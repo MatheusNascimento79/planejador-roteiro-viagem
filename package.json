@@ -1,0 +1,16 @@
+{
+  "name": "planejador-roteiro-viagem",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.0.0"
+  },
+  "devDependencies": {
+    "vercel": "^48.0.0"
+  }
+}
