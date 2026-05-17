@@ -871,8 +871,8 @@
       eurRate: 5.5,
       currency: "BRL",
       airTransport: {
-        outbound: { origin: "", destination: "", company: "", cost: 0 },
-        inbound: { origin: "", destination: "", company: "", cost: 0 }
+        outbound: { departureDate: "", origin: "", destination: "", company: "", cost: 0 },
+        inbound: { departureDate: "", origin: "", destination: "", company: "", cost: 0 }
       },
       stops: [
         {
@@ -973,12 +973,14 @@
     function normalizeAirTransport(airTransport = {}) {
       return {
         outbound: {
+          departureDate: airTransport.outbound?.departureDate || "",
           origin: airTransport.outbound?.origin || "",
           destination: airTransport.outbound?.destination || "",
           company: airTransport.outbound?.company || "",
           cost: numberValue(airTransport.outbound?.cost)
         },
         inbound: {
+          departureDate: airTransport.inbound?.departureDate || "",
           origin: airTransport.inbound?.origin || "",
           destination: airTransport.inbound?.destination || "",
           company: airTransport.inbound?.company || "",
@@ -1332,6 +1334,10 @@
             <h3>${label}</h3>
             <div class="air-fields">
               <div class="field">
+                <label>Data de embarque</label>
+                <input type="date" data-air="${direction}" data-air-key="departureDate" value="${escapeHtml(item.departureDate)}">
+              </div>
+              <div class="field">
                 <label>Origem</label>
                 <input data-air="${direction}" data-air-key="origin" value="${escapeHtml(item.origin)}">
               </div>
@@ -1672,8 +1678,8 @@
       const inbound = data.airTransport.inbound;
       const outboundText = [outbound.origin, outbound.destination].filter(Boolean).join(" → ");
       const inboundText = [inbound.origin, inbound.destination].filter(Boolean).join(" → ");
-      if (outboundText) addRouteEvent(events, data.stops[0]?.start, `Transporte aéreo ida: ${outboundText}${outbound.company ? ` · ${outbound.company}` : ""}${numberValue(outbound.cost) ? ` (${money.format(outbound.cost)})` : ""}`, 1);
-      if (inboundText) addRouteEvent(events, data.stops.at(-1)?.end, `Transporte aéreo volta: ${inboundText}${inbound.company ? ` · ${inbound.company}` : ""}${numberValue(inbound.cost) ? ` (${money.format(inbound.cost)})` : ""}`, 90);
+      if (outboundText) addRouteEvent(events, outbound.departureDate || data.stops[0]?.start, `Transporte aéreo ida: ${outboundText}${outbound.company ? ` · ${outbound.company}` : ""}${numberValue(outbound.cost) ? ` (${money.format(outbound.cost)})` : ""}`, 1);
+      if (inboundText) addRouteEvent(events, inbound.departureDate || data.stops.at(-1)?.end, `Transporte aéreo volta: ${inboundText}${inbound.company ? ` · ${inbound.company}` : ""}${numberValue(inbound.cost) ? ` (${money.format(inbound.cost)})` : ""}`, 90);
 
       data.stops.forEach((stop) => {
         addRouteEvent(events, stop.start, `Chegada em ${stop.city || "destino"}${stopNights(stop) ? ` · ${stopNights(stop)} noite(s)` : ""}`, 5);
@@ -1735,11 +1741,11 @@
         "",
         "## Transporte aéreo",
         "",
-        "| Trecho | Origem | Destino | Companhia | Custo |",
-        "| --- | --- | --- | --- | ---: |",
-        `| Ida | ${mdEscape(data.airTransport.outbound.origin || "-")} | ${mdEscape(data.airTransport.outbound.destination || "-")} | ${mdEscape(data.airTransport.outbound.company || "-")} | ${money.format(numberValue(data.airTransport.outbound.cost))} |`,
-        `| Volta | ${mdEscape(data.airTransport.inbound.origin || "-")} | ${mdEscape(data.airTransport.inbound.destination || "-")} | ${mdEscape(data.airTransport.inbound.company || "-")} | ${money.format(numberValue(data.airTransport.inbound.cost))} |`,
-        `| **Total aéreo** |  |  |  | **${money.format(airTotal())}** |`,
+        "| Trecho | Data de embarque | Origem | Destino | Companhia | Custo |",
+        "| --- | --- | --- | --- | --- | ---: |",
+        `| Ida | ${formatDate(data.airTransport.outbound.departureDate)} | ${mdEscape(data.airTransport.outbound.origin || "-")} | ${mdEscape(data.airTransport.outbound.destination || "-")} | ${mdEscape(data.airTransport.outbound.company || "-")} | ${money.format(numberValue(data.airTransport.outbound.cost))} |`,
+        `| Volta | ${formatDate(data.airTransport.inbound.departureDate)} | ${mdEscape(data.airTransport.inbound.origin || "-")} | ${mdEscape(data.airTransport.inbound.destination || "-")} | ${mdEscape(data.airTransport.inbound.company || "-")} | ${money.format(numberValue(data.airTransport.inbound.cost))} |`,
+        `| **Total aéreo** |  |  |  |  | **${money.format(airTotal())}** |`,
         "",
         "## Roteiro final geral",
         "",
