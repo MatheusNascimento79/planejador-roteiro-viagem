@@ -360,6 +360,14 @@
       border: 1px solid var(--line);
       border-radius: 8px;
       background: #fff;
+      width: 100%;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .stop:hover {
+      border-color: var(--teal);
+      background: #f8fcfb;
     }
 
     .stop-date {
@@ -400,6 +408,83 @@
       margin-bottom: 14px;
     }
 
+    .air-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .air-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfcfb;
+    }
+
+    .air-card h3 {
+      margin: 0 0 12px;
+      color: var(--teal);
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .air-fields {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      place-items: center;
+      padding: 22px;
+      background: rgba(23, 32, 29, .44);
+    }
+
+    .modal-backdrop.open {
+      display: grid;
+    }
+
+    .modal {
+      width: min(840px, 100%);
+      max-height: min(780px, 92vh);
+      overflow: auto;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 24px 80px rgba(23, 32, 29, .22);
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .modal-body {
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .cost-table {
+      width: 100%;
+      min-width: 0;
+      table-layout: auto;
+    }
+
+    .cost-table th,
+    .cost-table td {
+      padding: 8px;
+    }
+
     .field label {
       display: block;
       color: var(--muted);
@@ -418,6 +503,8 @@
       main { padding: 14px; }
       .metrics { grid-template-columns: 1fr; }
       .trip-settings { grid-template-columns: 1fr 1fr; }
+      .air-grid,
+      .air-fields { grid-template-columns: 1fr; }
       .stop { grid-template-columns: 1fr; }
     }
 
@@ -561,6 +648,13 @@
       <div class="workspace">
         <section>
           <div class="section-head">
+            <h2>Transporte Aéreo</h2>
+          </div>
+          <div class="panel-body air-grid" id="airTransport"></div>
+        </section>
+
+        <section>
+          <div class="section-head">
             <h2>Roteiro Editável</h2>
             <span id="saveState" class="subtitle">Salvo no navegador</span>
           </div>
@@ -598,16 +692,27 @@
           </section>
 
           <section>
-            <div class="section-head">
+            <details>
+              <summary class="section-head">
               <h2>Resumo Técnico</h2>
-            </div>
-            <div class="panel-body">
-              <div class="export-box" id="exportBox"></div>
-            </div>
+              </summary>
+              <div class="panel-body">
+                <div class="export-box" id="exportBox"></div>
+              </div>
+            </details>
           </section>
         </div>
       </div>
     </main>
+    <div class="modal-backdrop" id="costModal" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="costModalTitle">
+        <div class="modal-head">
+          <h2 id="costModalTitle">Custos do destino</h2>
+          <button class="icon-btn" id="closeCostModal" title="Fechar">×</button>
+        </div>
+        <div class="modal-body" id="costModalBody"></div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -618,13 +723,17 @@
       travelers: 2,
       eurRate: 5.5,
       currency: "BRL",
+      airTransport: {
+        outbound: { origin: "", destination: "", company: "", cost: 0 },
+        inbound: { origin: "", destination: "", company: "", cost: 0 }
+      },
       stops: [
         {
           city: "Primeiro destino",
           start: "",
           end: "",
           items: [
-            { category: "transport", text: "Chegada, deslocamentos e passagens." },
+            { category: "transport", text: "Chegada, translados e deslocamentos locais." },
             { category: "hotel", text: "Hotel R$ 0 + R$ 0 taxas" },
             { category: "tour", text: "Passeio ou ingresso R$ 0 por pessoa" },
             { category: "food", text: "Alimentação R$ 0 por pessoa" }
@@ -639,7 +748,7 @@
     const shortDate = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" });
     const longDate = new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
     const itemCategories = [
-      ["transport", "Transporte"],
+      ["transport", "Translados"],
       ["hotel", "Hotel"],
       ["tour", "Passeios"],
       ["food", "Alimentação"]
@@ -656,7 +765,11 @@
       checks: document.querySelector("#checks"),
       timeline: document.querySelector("#timeline"),
       exportBox: document.querySelector("#exportBox"),
-      saveState: document.querySelector("#saveState")
+      saveState: document.querySelector("#saveState"),
+      airTransport: document.querySelector("#airTransport"),
+      costModal: document.querySelector("#costModal"),
+      costModalTitle: document.querySelector("#costModalTitle"),
+      costModalBody: document.querySelector("#costModalBody")
     };
 
     function loadData() {
@@ -670,6 +783,7 @@
     }
 
     function normalizeData(source) {
+      source.airTransport = normalizeAirTransport(source.airTransport);
       source.stops = (source.stops || []).map((stop) => {
         const normalized = { ...stop };
         if (!Array.isArray(normalized.items)) {
@@ -685,6 +799,23 @@
         return normalized;
       });
       return source;
+    }
+
+    function normalizeAirTransport(airTransport = {}) {
+      return {
+        outbound: {
+          origin: airTransport.outbound?.origin || "",
+          destination: airTransport.outbound?.destination || "",
+          company: airTransport.outbound?.company || "",
+          cost: numberValue(airTransport.outbound?.cost)
+        },
+        inbound: {
+          origin: airTransport.inbound?.origin || "",
+          destination: airTransport.inbound?.destination || "",
+          company: airTransport.inbound?.company || "",
+          cost: numberValue(airTransport.inbound?.cost)
+        }
+      };
     }
 
     function legacyItems(stop, trip) {
@@ -871,6 +1002,10 @@
         .reduce((sum, item) => sum + itemAmount(item.text), 0);
     }
 
+    function airTotal() {
+      return numberValue(data.airTransport?.outbound?.cost) + numberValue(data.airTransport?.inbound?.cost);
+    }
+
     function stopNights(stop) {
       return Math.max(0, dayDiff(parseDate(stop.start), parseDate(stop.end)));
     }
@@ -890,7 +1025,7 @@
         acc.max += total;
         acc.nights += stopNights(stop);
         return acc;
-      }, { min: 0, max: 0, nights: 0 });
+      }, { min: airTotal(), max: airTotal(), nights: 0 });
     }
 
     function renderSettings() {
@@ -898,6 +1033,38 @@
       el.travelers.value = data.travelers;
       el.eurRate.value = data.eurRate;
       el.currency.value = data.currency;
+    }
+
+    function renderAirTransport() {
+      el.airTransport.innerHTML = [
+        ["outbound", "Ida"],
+        ["inbound", "Volta"]
+      ].map(([direction, label]) => {
+        const item = data.airTransport[direction];
+        return `
+          <div class="air-card">
+            <h3>${label}</h3>
+            <div class="air-fields">
+              <div class="field">
+                <label>Origem</label>
+                <input data-air="${direction}" data-air-key="origin" value="${escapeHtml(item.origin)}">
+              </div>
+              <div class="field">
+                <label>Destino</label>
+                <input data-air="${direction}" data-air-key="destination" value="${escapeHtml(item.destination)}">
+              </div>
+              <div class="field">
+                <label>Companhia</label>
+                <input data-air="${direction}" data-air-key="company" value="${escapeHtml(item.company)}">
+              </div>
+              <div class="field">
+                <label>Custo</label>
+                <input type="number" min="0" step="1" data-air="${direction}" data-air-key="cost" value="${numberValue(item.cost)}">
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
     }
 
     function renderMetrics() {
@@ -1009,22 +1176,66 @@
     }
 
     function renderTimeline() {
-      const sorted = [...data.stops].sort((a, b) => (a.start || "").localeCompare(b.start || ""));
-      el.timeline.innerHTML = sorted.map(stop => {
+      const sorted = data.stops
+        .map((stop, index) => ({ stop, index }))
+        .sort((a, b) => (a.stop.start || "").localeCompare(b.stop.start || ""));
+      el.timeline.innerHTML = sorted.map(({ stop, index }) => {
         const start = parseDate(stop.start);
         const end = parseDate(stop.end);
         const dates = start && end ? `${shortDate.format(start)} → ${shortDate.format(end)}` : "sem data";
         const detail = start ? `${longDate.format(start)} · ${stopNights(stop)} noite(s)` : `${stopNights(stop)} noite(s)`;
         return `
-          <article class="stop">
+          <button class="stop" data-action="open-costs" data-index="${index}">
             <div class="stop-date">${dates}</div>
             <div>
               <h3>${escapeHtml(stop.city)}</h3>
               <p>${escapeHtml(detail)} · ${money.format(stopTotal(stop))}</p>
             </div>
-          </article>
+          </button>
         `;
       }).join("");
+    }
+
+    function buildCostModal(stop) {
+      return itemCategories.map(([category, label]) => {
+        const items = (stop.items || []).filter(item => item.category === category);
+        const rows = items.length
+          ? items.map(item => `<tr><td>${escapeHtml(item.text || "Item sem descrição")}</td><td>${money.format(itemAmount(item.text))}</td></tr>`).join("")
+          : `<tr><td>Sem itens.</td><td>${money.format(0)}</td></tr>`;
+        return `
+          <section>
+            <div class="section-head">
+              <h2>${label}</h2>
+              <strong>${money.format(categoryTotal(stop, category))}</strong>
+            </div>
+            <div class="panel-body">
+              <table class="cost-table">
+                <thead><tr><th>Item</th><th>Valor</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </section>
+        `;
+      }).join("");
+    }
+
+    function openCostModal(index) {
+      const stop = data.stops[index];
+      if (!stop) return;
+      el.costModalTitle.textContent = `${stop.city || "Destino"} · ${money.format(stopTotal(stop))}`;
+      el.costModalBody.innerHTML = `
+        <div class="check">
+          ${formatDate(stop.start)} a ${formatDate(stop.end)} · ${stopNights(stop)} noite(s)
+        </div>
+        ${buildCostModal(stop)}
+      `;
+      el.costModal.classList.add("open");
+      el.costModal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeCostModal() {
+      el.costModal.classList.remove("open");
+      el.costModal.setAttribute("aria-hidden", "true");
     }
 
     function renderExport() {
@@ -1034,6 +1245,11 @@
         pessoas: data.travelers,
         total_estimado_min: sum.min,
         total_estimado_max: sum.max,
+        transporte_aereo: {
+          ida: data.airTransport.outbound,
+          volta: data.airTransport.inbound,
+          custo_total: airTotal()
+        },
         destinos: data.stops.map(stop => ({
           destino: stop.city,
           entrada: stop.start,
@@ -1074,10 +1290,19 @@
         `- Moeda de controle: ${data.currency}`,
         `- Euro usado no rascunho: ${data.eurRate}`,
         `- Total estimado: ${money.format(sum.min)}`,
+        `- Transporte aéreo: ${money.format(airTotal())}`,
         `- Custo por pessoa: ${money.format(sum.min / Math.max(1, data.travelers))}`,
         `- Dias de viagem: ${tripDays()} dias`,
         `- Noites planejadas: ${sum.nights} noites`,
         `- Destinos: ${data.stops.length}`,
+        "",
+        "## Transporte aéreo",
+        "",
+        "| Trecho | Origem | Destino | Companhia | Custo |",
+        "| --- | --- | --- | --- | ---: |",
+        `| Ida | ${mdEscape(data.airTransport.outbound.origin || "-")} | ${mdEscape(data.airTransport.outbound.destination || "-")} | ${mdEscape(data.airTransport.outbound.company || "-")} | ${money.format(numberValue(data.airTransport.outbound.cost))} |`,
+        `| Volta | ${mdEscape(data.airTransport.inbound.origin || "-")} | ${mdEscape(data.airTransport.inbound.destination || "-")} | ${mdEscape(data.airTransport.inbound.company || "-")} | ${money.format(numberValue(data.airTransport.inbound.cost))} |`,
+        `| **Total aéreo** |  |  |  | **${money.format(airTotal())}** |`,
         "",
         "## Linha do tempo",
         "",
@@ -1139,6 +1364,7 @@
 
     function render() {
       renderSettings();
+      renderAirTransport();
       renderMetrics();
       renderRows();
       renderChecks();
@@ -1183,6 +1409,15 @@
       scheduleAutoSave();
       if (key === "start" || key === "end") render();
       else renderLivePanels();
+    }
+
+    function updateAirTransport(target) {
+      const direction = target.dataset.air;
+      const key = target.dataset.airKey;
+      if (!direction || !key) return;
+      data.airTransport[direction][key] = key === "cost" ? numberValue(target.value) : target.value;
+      scheduleAutoSave();
+      renderLivePanels();
     }
 
     function moveStop(index, direction) {
@@ -1238,6 +1473,18 @@
     }
 
     document.querySelector("#rows").addEventListener("input", (event) => updateStop(event.target));
+    el.airTransport.addEventListener("input", (event) => updateAirTransport(event.target));
+    el.timeline.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action='open-costs']");
+      if (button) openCostModal(Number(button.dataset.index));
+    });
+    document.querySelector("#closeCostModal").addEventListener("click", closeCostModal);
+    el.costModal.addEventListener("click", (event) => {
+      if (event.target === el.costModal) closeCostModal();
+    });
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeCostModal();
+    });
     document.querySelector("#rows").addEventListener("click", (event) => {
       const button = event.target.closest("button[data-action]");
       if (!button) return;
