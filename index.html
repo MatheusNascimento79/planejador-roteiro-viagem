@@ -1034,7 +1034,7 @@
           return;
         }
         data = normalizeData(payload.data);
-        flushAutoSave();
+        localStorage.setItem(storageKey, JSON.stringify(data));
         render();
         el.saveState.textContent = "Compartilhado carregado";
         showToast("Roteiro compartilhado carregado");
