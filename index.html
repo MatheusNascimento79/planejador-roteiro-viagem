@@ -1019,12 +1019,15 @@
 
     async function loadSharedData() {
       try {
-        const response = await fetch("/api/roteiro", { cache: "no-store" });
+        const response = await fetchSharedRoute();
         if (response.status === 404) {
           el.saveState.textContent = "Roteiro local";
           return;
         }
-        if (!response.ok) throw new Error("Falha ao carregar roteiro compartilhado.");
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.detail || error.message || "Falha ao carregar roteiro compartilhado.");
+        }
         const payload = await response.json();
         if (!payload?.data?.stops) {
           el.saveState.textContent = "Roteiro local";
@@ -1037,7 +1040,19 @@
         showToast("Roteiro compartilhado carregado");
       } catch (error) {
         el.saveState.textContent = "Auto-save local ativo";
+        showToast("Não carregou o compartilhado", error.message || "Usando dados locais deste navegador.", "error");
       }
+    }
+
+    async function fetchSharedRoute() {
+      const request = () => fetch(`/api/roteiro?t=${Date.now()}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" }
+        });
+      const first = await request();
+      if (first.ok || first.status === 404) return first;
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return request();
     }
 
     async function saveSharedData() {

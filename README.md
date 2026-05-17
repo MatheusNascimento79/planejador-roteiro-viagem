@@ -62,12 +62,12 @@ Para habilitar edição compartilhada entre pessoas:
 
 Depois disso:
 
-- `Salvar` grava o JSON compartilhado no Vercel Blob privado, via `/api/roteiro`.
+- `Salvar` grava uma nova versão do JSON compartilhado no Vercel Blob privado, via `/api/roteiro`.
 - Ao abrir o app, ele tenta carregar o roteiro compartilhado.
 - `Baixar JSON` salva uma cópia local na máquina.
 - `Exportar` salva um `.md` na máquina do operador.
 
-Observação: se duas pessoas salvarem ao mesmo tempo, a última gravação vence.
+Observação: cada salvamento cria uma versão em `roteiro/versions/`; ao abrir, o app carrega a versão mais recente.
 
 ## Licença
 
