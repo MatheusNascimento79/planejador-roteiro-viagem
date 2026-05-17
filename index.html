@@ -626,7 +626,8 @@
           items: [
             { category: "transport", text: "Chegada, deslocamentos e passagens." },
             { category: "hotel", text: "Hotel R$ 0 + R$ 0 taxas" },
-            { category: "tour", text: "Passeio ou ingresso R$ 0 por pessoa" }
+            { category: "tour", text: "Passeio ou ingresso R$ 0 por pessoa" },
+            { category: "food", text: "Alimentação R$ 0 por pessoa" }
           ]
         }
       ]
@@ -640,7 +641,8 @@
     const itemCategories = [
       ["transport", "Transporte"],
       ["hotel", "Hotel"],
-      ["tour", "Passeios"]
+      ["tour", "Passeios"],
+      ["food", "Alimentação"]
     ];
     let autoSaveTimer = null;
 
@@ -677,6 +679,9 @@
           category: item.category || "tour",
           text: item.text || ""
         }));
+        if (!normalized.items.some(item => item.category === "food")) {
+          normalized.items.push({ category: "food", text: "" });
+        }
         return normalized;
       });
       return source;
@@ -1262,7 +1267,8 @@
         items: [
           { category: "transport", text: "" },
           { category: "hotel", text: "" },
-          { category: "tour", text: "" }
+          { category: "tour", text: "" },
+          { category: "food", text: "" }
         ]
       });
       scheduleAutoSave();

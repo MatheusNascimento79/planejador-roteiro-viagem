@@ -5,7 +5,7 @@ Aplicativo estático para organizar roteiros de viagem em família ou grupo, com
 ## Funcionalidades
 
 - Roteiro por destino, datas de entrada e saída.
-- Itens separados por transporte, hotel e passeios.
+- Itens separados por transporte, hotel, passeios e alimentação.
 - Botão `+` para adicionar novos itens livres em cada categoria.
 - Leitura automática de valores escritos nas caixas de texto.
 - Soma de valores em `R$` e conversão simples de `€` pelo câmbio configurado.
