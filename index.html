@@ -516,6 +516,39 @@
       padding: 8px;
     }
 
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 40;
+      width: min(360px, calc(100vw - 44px));
+      padding: 13px 15px;
+      border: 1px solid #b8d8d2;
+      border-radius: 8px;
+      background: #f8fcfb;
+      color: var(--ink);
+      box-shadow: 0 18px 48px rgba(23, 32, 29, .16);
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity .18s ease, transform .18s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.error {
+      border-color: #efb5a8;
+      background: var(--rose);
+    }
+
+    .toast strong {
+      display: block;
+      margin-bottom: 3px;
+    }
+
     .field label {
       display: block;
       color: var(--muted);
@@ -751,6 +784,7 @@
         <div class="modal-body" id="costModalBody"></div>
       </div>
     </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </div>
 
   <script>
@@ -809,7 +843,8 @@
       airTransport: document.querySelector("#airTransport"),
       costModal: document.querySelector("#costModal"),
       costModalTitle: document.querySelector("#costModalTitle"),
-      costModalBody: document.querySelector("#costModalBody")
+      costModalBody: document.querySelector("#costModalBody"),
+      toast: document.querySelector("#toast")
     };
 
     function loadData() {
@@ -886,6 +921,15 @@
       el.saveState.textContent = "Salvo " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     }
 
+    function showToast(title, message = "", type = "success") {
+      window.clearTimeout(showToast.timer);
+      el.toast.className = `toast show ${type === "error" ? "error" : ""}`;
+      el.toast.innerHTML = `<strong>${escapeHtml(title)}</strong>${message ? `<span>${escapeHtml(message)}</span>` : ""}`;
+      showToast.timer = window.setTimeout(() => {
+        el.toast.classList.remove("show");
+      }, 3200);
+    }
+
     function scheduleAutoSave() {
       el.saveState.textContent = "Salvando...";
       window.clearTimeout(autoSaveTimer);
@@ -928,6 +972,7 @@
       link.remove();
       URL.revokeObjectURL(url);
       el.saveState.textContent = "Arquivo salvo";
+      showToast("JSON baixado", "Uma cópia local foi salva na sua máquina.");
     }
 
     async function loadSharedData() {
@@ -947,6 +992,7 @@
         flushAutoSave();
         render();
         el.saveState.textContent = "Compartilhado carregado";
+        showToast("Roteiro compartilhado carregado");
       } catch (error) {
         el.saveState.textContent = "Auto-save local ativo";
       }
@@ -967,8 +1013,10 @@
         }
         const payload = await response.json();
         el.saveState.textContent = "Compartilhado salvo " + new Date(payload.savedAt || Date.now()).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        showToast("Salvo no JSON compartilhado", "As alterações já estão disponíveis para todos.");
       } catch (error) {
         el.saveState.textContent = "Falha no compartilhado; salvo local";
+        showToast("Falha ao salvar compartilhado", "O auto-save local continua ativo.", "error");
         alert("Não consegui salvar no JSON compartilhado. Na Vercel, conecte um Vercel Blob Store ao projeto.");
       }
     }
@@ -985,7 +1033,9 @@
           saveData();
           render();
           el.saveState.textContent = "Arquivo importado";
+          showToast("JSON importado", "O roteiro foi carregado neste navegador.");
         } catch (error) {
+          showToast("Falha ao importar", "Use um JSON salvo por este roteiro.", "error");
           alert("Não consegui abrir este arquivo. Use um JSON salvo por este roteiro.");
         }
       };
@@ -1458,6 +1508,7 @@
       link.remove();
       URL.revokeObjectURL(url);
       el.saveState.textContent = "Markdown exportado";
+      showToast("Markdown exportado", "O arquivo .md foi salvo na sua máquina.");
     }
 
     function render() {
