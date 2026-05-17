@@ -324,6 +324,10 @@
       grid-column: 1 / -1;
     }
 
+    .final-route {
+      grid-column: 1 / -1;
+    }
+
     .panel-body {
       padding: 16px;
     }
@@ -372,6 +376,35 @@
     .check.warn {
       border-left-color: var(--gold);
       background: var(--sun);
+    }
+
+    .route-final {
+      display: grid;
+      gap: 12px;
+    }
+
+    .route-day {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .route-day h3 {
+      margin: 0;
+      padding: 11px 12px;
+      background: #f6f5ef;
+      font-size: 15px;
+    }
+
+    .route-day ul {
+      margin: 0;
+      padding: 12px 18px 14px 30px;
+    }
+
+    .route-day li {
+      margin: 7px 0;
+      line-height: 1.38;
     }
 
     .check.danger {
@@ -764,6 +797,13 @@
           </section>
 
           <section class="technical-summary">
+            <div class="section-head">
+              <h2>Roteiro Final Geral</h2>
+            </div>
+            <div class="panel-body route-final" id="finalRoute"></div>
+          </section>
+
+          <section class="technical-summary">
             <details>
               <summary class="section-head">
               <h2>Resumo Técnico</h2>
@@ -839,6 +879,7 @@
       checks: document.querySelector("#checks"),
       timeline: document.querySelector("#timeline"),
       costSummary: document.querySelector("#costSummary"),
+      finalRoute: document.querySelector("#finalRoute"),
       exportBox: document.querySelector("#exportBox"),
       saveState: document.querySelector("#saveState"),
       airTransport: document.querySelector("#airTransport"),
@@ -1438,6 +1479,106 @@
       return date ? shortDate.format(date) : "sem data";
     }
 
+    function yearFromTrip() {
+      const datedStop = data.stops.find(stop => stop.start);
+      return datedStop?.start?.slice(0, 4) || String(new Date().getFullYear());
+    }
+
+    function dateFromDayMonth(dayMonth) {
+      const [day, month] = dayMonth.split("/");
+      return `${yearFromTrip()}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    }
+
+    function extractDayMentions(text) {
+      return Array.from(String(text || "").matchAll(/\b(\d{1,2}\/\d{1,2})(?:\/\d{2,4})?\b/g)).map(match => match[1]);
+    }
+
+    function extractTime(text) {
+      const match = String(text || "").match(/\b(?:às\s*)?(\d{1,2}:\d{2})\b/i);
+      return match?.[1] || "";
+    }
+
+    function cleanRouteText(text) {
+      return String(text || "")
+        .replace(/\s+/g, " ")
+        .replace(/\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/g, "")
+        .replace(/\bàs\s*\d{1,2}:\d{2}\b/gi, "")
+        .replace(/\b\d{1,2}:\d{2}\b/g, "")
+        .replace(/\s+([,.;:])/g, "$1")
+        .replace(/^[\s,.;:-]+|[\s,.;:-]+$/g, "")
+        .trim();
+    }
+
+    function routeItemText(stop, item, label) {
+      const text = cleanRouteText(item.text);
+      const time = extractTime(item.text);
+      const prefix = time ? `${time} - ` : "";
+      const value = itemAmount(item.text);
+      const cost = value > 0 ? ` (${money.format(value)})` : "";
+      return `${prefix}${label}: ${text || "item a definir"}${cost}`;
+    }
+
+    function shouldIncludeInFinalRoute(item) {
+      const text = String(item.text || "").trim();
+      if (!text) return false;
+      if (/ajuste para total planejado anterior/i.test(text)) return false;
+      if (/^alimentação\s*r\$\s*0(?:,00)?(?:\s*por pessoa)?$/i.test(text)) return false;
+      if (/^passeio ou ingresso\s*r\$\s*0(?:,00)?(?:\s*por pessoa)?$/i.test(text)) return false;
+      return true;
+    }
+
+    function addRouteEvent(events, date, text, order = 50) {
+      if (!date || !text) return;
+      if (!events[date]) events[date] = [];
+      events[date].push({ text, order });
+    }
+
+    function buildFinalRouteDays() {
+      const events = {};
+      const outbound = data.airTransport.outbound;
+      const inbound = data.airTransport.inbound;
+      const outboundText = [outbound.origin, outbound.destination].filter(Boolean).join(" → ");
+      const inboundText = [inbound.origin, inbound.destination].filter(Boolean).join(" → ");
+      if (outboundText) addRouteEvent(events, data.stops[0]?.start, `Transporte aéreo ida: ${outboundText}${outbound.company ? ` · ${outbound.company}` : ""}${numberValue(outbound.cost) ? ` (${money.format(outbound.cost)})` : ""}`, 1);
+      if (inboundText) addRouteEvent(events, data.stops.at(-1)?.end, `Transporte aéreo volta: ${inboundText}${inbound.company ? ` · ${inbound.company}` : ""}${numberValue(inbound.cost) ? ` (${money.format(inbound.cost)})` : ""}`, 90);
+
+      data.stops.forEach((stop) => {
+        addRouteEvent(events, stop.start, `Chegada em ${stop.city || "destino"}${stopNights(stop) ? ` · ${stopNights(stop)} noite(s)` : ""}`, 5);
+        if (stop.end) addRouteEvent(events, stop.end, `Saída de ${stop.city || "destino"}`, 95);
+
+        (stop.items || []).filter(shouldIncludeInFinalRoute).forEach((item) => {
+          const label = itemCategories.find(([key]) => key === item.category)?.[1] || "Item";
+          const mentions = extractDayMentions(item.text);
+          const targetDates = mentions.length ? mentions.map(dateFromDayMonth) : [stop.start || stop.end];
+          targetDates.forEach(date => addRouteEvent(events, date, routeItemText(stop, item, label), item.category === "transport" ? 10 : 50));
+        });
+      });
+
+      return Object.entries(events)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, items]) => ({
+          date,
+          items: items
+            .sort((a, b) => a.order - b.order || a.text.localeCompare(b.text))
+            .map(item => item.text)
+            .filter((text, index, arr) => text && arr.indexOf(text) === index)
+        }));
+    }
+
+    function renderFinalRoute() {
+      const days = buildFinalRouteDays();
+      if (!days.length) {
+        el.finalRoute.innerHTML = `<div class="check warn">Preencha datas e itens do roteiro para gerar o roteiro final geral.</div>`;
+        return;
+      }
+      el.finalRoute.innerHTML = days.map(day => `
+        <article class="route-day">
+          <h3>${formatDate(day.date)}</h3>
+          <ul>${day.items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        </article>
+      `).join("");
+    }
+
     function buildMarkdownExport() {
       const sum = totals();
       const exportedAt = new Date().toLocaleString("pt-BR");
@@ -1466,6 +1607,15 @@
         `| Ida | ${mdEscape(data.airTransport.outbound.origin || "-")} | ${mdEscape(data.airTransport.outbound.destination || "-")} | ${mdEscape(data.airTransport.outbound.company || "-")} | ${money.format(numberValue(data.airTransport.outbound.cost))} |`,
         `| Volta | ${mdEscape(data.airTransport.inbound.origin || "-")} | ${mdEscape(data.airTransport.inbound.destination || "-")} | ${mdEscape(data.airTransport.inbound.company || "-")} | ${money.format(numberValue(data.airTransport.inbound.cost))} |`,
         `| **Total aéreo** |  |  |  | **${money.format(airTotal())}** |`,
+        "",
+        "## Roteiro final geral",
+        "",
+        ...buildFinalRouteDays().flatMap(day => [
+          `### ${formatDate(day.date)}`,
+          "",
+          ...day.items.map(item => `- ${item}`),
+          ""
+        ]),
         "",
         "## Linha do tempo",
         "",
@@ -1535,6 +1685,7 @@
       renderChecks();
       renderTimeline();
       renderCostSummary();
+      renderFinalRoute();
       renderExport();
       requestAnimationFrame(autoSizeAllTextareas);
     }
@@ -1544,6 +1695,7 @@
       renderChecks();
       renderTimeline();
       renderCostSummary();
+      renderFinalRoute();
       renderExport();
     }
 
