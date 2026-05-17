@@ -1080,18 +1080,33 @@
       return itemAmountFor(text, data.travelers, data.eurRate);
     }
 
+    function currencyExpressionTotal(text, symbol, rate = 1) {
+      const escaped = symbol === "R$" ? "R\\$" : "€";
+      const pattern = new RegExp(`${escaped}\\s*([\\d.]+(?:,\\d{1,2})?)(?:\\s*(?:x|X|×|\\*)\\s*(\\d+(?:,\\d+)?))?`, "g");
+      let total = 0;
+      for (const match of String(text || "").matchAll(pattern)) {
+        const amount = parseMoneyNumber(match[1]);
+        const factor = match[2] ? parseMoneyNumber(match[2]) : 1;
+        total += amount * factor * rate;
+      }
+      return total;
+    }
+
     function itemAmountFor(text, travelers, eurRate) {
       const value = String(text || "");
       if (/não somar|nao somar|alternativa|opção|opcao/i.test(value)) return 0;
       const multiplier = /por pessoa|p\/pessoa|cada pessoa|por pax/i.test(value) ? Math.max(1, numberValue(travelers)) : 1;
       const pricedPart = value.includes("=") ? value.split("=").at(-1) : value;
       const hasBrl = /R\$/i.test(pricedPart);
-      let total = 0;
-      for (const match of pricedPart.matchAll(/R\$\s*([\d.]+(?:,\d{1,2})?)/gi)) total += parseMoneyNumber(match[1]);
+      let total = currencyExpressionTotal(pricedPart, "R$");
       if (!hasBrl) {
-        const euroMatches = Array.from(pricedPart.matchAll(/€\s*([\d.]+(?:,\d{1,2})?)/gi));
-        const selected = /entre|de .* a /i.test(pricedPart) ? euroMatches.slice(-1) : euroMatches;
-        for (const match of selected) total += parseMoneyNumber(match[1]) * numberValue(eurRate);
+        if (/entre|de .* a /i.test(pricedPart)) {
+          const euroMatches = Array.from(pricedPart.matchAll(/€\s*([\d.]+(?:,\d{1,2})?)(?:\s*(?:x|X|×|\*)\s*(\d+(?:,\d+)?))?/g));
+          const last = euroMatches.at(-1);
+          if (last) total += parseMoneyNumber(last[1]) * (last[2] ? parseMoneyNumber(last[2]) : 1) * numberValue(eurRate);
+        } else {
+          total += currencyExpressionTotal(pricedPart, "€", numberValue(eurRate));
+        }
       }
       return total * multiplier;
     }
