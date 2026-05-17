@@ -783,6 +783,7 @@
     let data = loadData();
 
     const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+    const moneyInput = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const shortDate = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" });
     const longDate = new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
     const itemCategories = [
@@ -895,6 +896,7 @@
     }
 
     function flushAutoSave() {
+      syncDataFromDom();
       window.clearTimeout(autoSaveTimer);
       localStorage.setItem(storageKey, JSON.stringify(data));
     }
@@ -909,6 +911,7 @@
     }
 
     function saveToFile() {
+      syncDataFromDom();
       const payload = {
         app: "viagem-europa-2026",
         version: 1,
@@ -1011,6 +1014,18 @@
       return Number.isFinite(parsed) ? parsed : 0;
     }
 
+    function parseCurrencyInput(value) {
+      const text = String(value || "").trim();
+      if (!text) return 0;
+      const cleaned = text.replace(/[^\d,.-]/g, "");
+      if (cleaned.includes(",")) return parseMoneyNumber(cleaned);
+      return numberValue(cleaned);
+    }
+
+    function formatCurrencyInput(value) {
+      return moneyInput.format(numberValue(value));
+    }
+
     function itemAmount(text) {
       return itemAmountFor(text, data.travelers, data.eurRate);
     }
@@ -1102,12 +1117,35 @@
               </div>
               <div class="field">
                 <label>Custo</label>
-                <input type="number" min="0" step="1" data-air="${direction}" data-air-key="cost" value="${numberValue(item.cost)}">
+                <input inputmode="decimal" data-air="${direction}" data-air-key="cost" value="${escapeHtml(formatCurrencyInput(item.cost))}">
               </div>
             </div>
           </div>
         `;
       }).join("");
+    }
+
+    function syncDataFromDom() {
+      document.querySelectorAll("[data-index][data-key]").forEach((input) => {
+        const index = Number(input.dataset.index);
+        const key = input.dataset.key;
+        if (Number.isInteger(index) && data.stops[index] && key) data.stops[index][key] = input.value;
+      });
+
+      document.querySelectorAll("textarea[data-index][data-item-index]").forEach((textarea) => {
+        const index = Number(textarea.dataset.index);
+        const itemIndex = Number(textarea.dataset.itemIndex);
+        if (Number.isInteger(index) && Number.isInteger(itemIndex) && data.stops[index]?.items?.[itemIndex]) {
+          data.stops[index].items[itemIndex].text = textarea.value;
+        }
+      });
+
+      document.querySelectorAll("[data-air][data-air-key]").forEach((input) => {
+        const direction = input.dataset.air;
+        const key = input.dataset.airKey;
+        if (!data.airTransport?.[direction] || !key) return;
+        data.airTransport[direction][key] = key === "cost" ? parseCurrencyInput(input.value) : input.value;
+      });
     }
 
     function renderMetrics() {
@@ -1408,6 +1446,7 @@
     }
 
     function exportMarkdownFile() {
+      syncDataFromDom();
       const markdown = buildMarkdownExport();
       const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
       const url = URL.createObjectURL(blob);
@@ -1476,7 +1515,7 @@
       const direction = target.dataset.air;
       const key = target.dataset.airKey;
       if (!direction || !key) return;
-      data.airTransport[direction][key] = key === "cost" ? numberValue(target.value) : target.value;
+      data.airTransport[direction][key] = key === "cost" ? parseCurrencyInput(target.value) : target.value;
       scheduleAutoSave();
       renderLivePanels();
     }
@@ -1534,7 +1573,11 @@
     }
 
     document.querySelector("#rows").addEventListener("input", (event) => updateStop(event.target));
+    document.querySelector("#rows").addEventListener("change", (event) => updateStop(event.target));
     el.airTransport.addEventListener("input", (event) => updateAirTransport(event.target));
+    el.airTransport.addEventListener("blur", (event) => {
+      if (event.target.dataset.airKey === "cost") event.target.value = formatCurrencyInput(parseCurrencyInput(event.target.value));
+    }, true);
     el.timeline.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-action='open-costs']");
       if (button) openCostModal(Number(button.dataset.index));
