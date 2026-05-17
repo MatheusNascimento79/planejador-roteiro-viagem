@@ -867,7 +867,8 @@
       ["tour", "Passeios"],
       ["food", "Alimentação"]
     ];
-    let autoSaveTimer = null;
+    const autoSaveIntervalMs = 10 * 60 * 1000;
+    let hasPendingAutoSave = false;
 
     const el = {
       tripName: document.querySelector("#tripName"),
@@ -960,6 +961,7 @@
 
     function saveData() {
       localStorage.setItem(storageKey, JSON.stringify(data));
+      hasPendingAutoSave = false;
       el.saveState.textContent = "Salvo " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     }
 
@@ -973,18 +975,23 @@
     }
 
     function scheduleAutoSave() {
-      el.saveState.textContent = "Salvando...";
-      window.clearTimeout(autoSaveTimer);
-      autoSaveTimer = window.setTimeout(() => {
-        localStorage.setItem(storageKey, JSON.stringify(data));
-        el.saveState.textContent = "Auto-save local " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      }, 350);
+      hasPendingAutoSave = true;
+      el.saveState.textContent = "Alterações pendentes";
     }
 
     function flushAutoSave() {
       syncDataFromDom();
-      window.clearTimeout(autoSaveTimer);
       localStorage.setItem(storageKey, JSON.stringify(data));
+      hasPendingAutoSave = false;
+    }
+
+    function runAutoSave() {
+      if (!hasPendingAutoSave) return;
+      syncDataFromDom();
+      localStorage.setItem(storageKey, JSON.stringify(data));
+      hasPendingAutoSave = false;
+      el.saveState.textContent = "Auto-save local " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      showToast("Salvamento automático", "As alterações foram salvas localmente.");
     }
 
     function safeFileName(value) {
@@ -1013,6 +1020,7 @@
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      hasPendingAutoSave = false;
       el.saveState.textContent = "Arquivo salvo";
       showToast("JSON baixado", "Uma cópia local foi salva na sua máquina.");
     }
@@ -1035,6 +1043,7 @@
         }
         data = normalizeData(payload.data);
         localStorage.setItem(storageKey, JSON.stringify(data));
+        hasPendingAutoSave = false;
         render();
         el.saveState.textContent = "Compartilhado carregado";
         showToast("Roteiro compartilhado carregado");
@@ -1069,6 +1078,7 @@
           throw new Error(error.message || "Falha ao salvar compartilhado.");
         }
         const payload = await response.json();
+        hasPendingAutoSave = false;
         el.saveState.textContent = "Compartilhado salvo " + new Date(payload.savedAt || Date.now()).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
         showToast("Salvo no JSON compartilhado", "As alterações já estão disponíveis para todos.");
       } catch (error) {
@@ -1688,6 +1698,7 @@
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      hasPendingAutoSave = false;
       el.saveState.textContent = "Markdown exportado";
       showToast("Markdown exportado", "O arquivo .md foi salvo na sua máquina.");
     }
@@ -1889,6 +1900,7 @@
       event.target.value = "";
     });
     window.addEventListener("beforeunload", flushAutoSave);
+    window.setInterval(runAutoSave, autoSaveIntervalMs);
 
     render();
     loadSharedData();
