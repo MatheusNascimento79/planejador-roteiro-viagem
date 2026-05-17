@@ -305,6 +305,35 @@
       gap: 6px;
     }
 
+    .destination-context {
+      display: grid;
+      gap: 5px;
+      margin-top: 8px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfb;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .destination-country {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 900;
+      color: var(--teal);
+    }
+
+    .destination-flag {
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .destination-curiosity {
+      color: var(--muted);
+    }
+
     .icon-btn {
       width: 36px;
       min-height: 36px;
@@ -867,6 +896,23 @@
       ["tour", "Passeios"],
       ["food", "Alimentação"]
     ];
+    const destinationCatalog = [
+      { keys: ["paris"], country: "França", flag: "🇫🇷", curiosity: "Paris abriga centenas de passagens cobertas, cafés históricos e mirantes além dos cartões-postais clássicos." },
+      { keys: ["amsterda", "amsterdam", "amsterdã"], country: "Países Baixos", flag: "🇳🇱", curiosity: "A cidade tem mais canais que Veneza e um centro histórico perfeito para explorar a pé, de bonde ou de barco." },
+      { keys: ["munique", "munich"], country: "Alemanha", flag: "🇩🇪", curiosity: "Munique combina museus técnicos, tradição bávara e fácil acesso aos Alpes e castelos da Baviera." },
+      { keys: ["salzburgo", "salzburg"], country: "Áustria", flag: "🇦🇹", curiosity: "Salzburgo é a cidade natal de Mozart e tem um centro barroco cercado por montanhas." },
+      { keys: ["cracovia", "cracóvia", "krakow", "kraków"], country: "Polônia", flag: "🇵🇱", curiosity: "Cracóvia preserva uma das maiores praças medievais da Europa e fica próxima a Auschwitz-Birkenau e Wieliczka." },
+      { keys: ["budapeste", "budapest"], country: "Hungria", flag: "🇭🇺", curiosity: "Budapeste é famosa pelos banhos termais, pontes sobre o Danúbio e vistas noturnas do Parlamento." },
+      { keys: ["roma", "rome"], country: "Itália", flag: "🇮🇹", curiosity: "Roma mistura ruínas antigas, igrejas monumentais e bairros vivos em uma cidade caminhável e cheia de camadas históricas." },
+      { keys: ["veneza", "venice"], country: "Itália", flag: "🇮🇹", curiosity: "Veneza se espalha por ilhas conectadas por pontes, canais e vaporetos, com pouca presença de carros." },
+      { keys: ["florenca", "florença", "florence"], country: "Itália", flag: "🇮🇹", curiosity: "Florença concentra obras-primas do Renascimento em uma área histórica compacta." },
+      { keys: ["viena", "vienna"], country: "Áustria", flag: "🇦🇹", curiosity: "Viena combina palácios imperiais, música clássica e cafés tradicionais com excelente transporte público." },
+      { keys: ["praga", "prague"], country: "República Tcheca", flag: "🇨🇿", curiosity: "Praga preserva um centro histórico muito fotogênico, com castelo, pontes e torres medievais." },
+      { keys: ["londres", "london"], country: "Reino Unido", flag: "🇬🇧", curiosity: "Londres reúne museus gratuitos, parques enormes e bairros com personalidades bem diferentes." },
+      { keys: ["madrid"], country: "Espanha", flag: "🇪🇸", curiosity: "Madri é conhecida por seus museus de arte, praças animadas e vida noturna tardia." },
+      { keys: ["barcelona"], country: "Espanha", flag: "🇪🇸", curiosity: "Barcelona combina praia, modernismo catalão e obras marcantes de Gaudí." },
+      { keys: ["lisboa", "lisbon"], country: "Portugal", flag: "🇵🇹", curiosity: "Lisboa mistura miradouros, bondes históricos, azulejos e bairros cheios de ladeiras." }
+    ];
     const autoSaveIntervalMs = 10 * 60 * 1000;
     let hasPendingAutoSave = false;
 
@@ -934,6 +980,33 @@
           cost: numberValue(airTransport.inbound?.cost)
         }
       };
+    }
+
+    function normalizeText(value) {
+      return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+    }
+
+    function destinationInfo(city) {
+      const normalized = normalizeText(city);
+      return destinationCatalog.find(entry => entry.keys.some(key => normalized.includes(normalizeText(key)))) || {
+        country: "País a definir",
+        flag: "🏳️",
+        curiosity: "Complete ou ajuste o nome da cidade para identificar automaticamente o país e uma curiosidade turística."
+      };
+    }
+
+    function renderDestinationContext(city) {
+      const info = destinationInfo(city);
+      return `
+        <div class="destination-context">
+          <div class="destination-country"><span>${escapeHtml(info.country)}</span></div>
+          <div class="destination-flag" aria-label="Bandeira">${info.flag}</div>
+          <div class="destination-curiosity">${escapeHtml(info.curiosity)}</div>
+        </div>
+      `;
     }
 
     function legacyItems(stop, trip) {
@@ -1300,7 +1373,10 @@
     function renderRows() {
       el.rows.innerHTML = data.stops.map((stop, index) => `
         <tr>
-          <td data-label="Destino"><input data-index="${index}" data-key="city" value="${escapeHtml(stop.city)}"></td>
+          <td data-label="Destino">
+            <input data-index="${index}" data-key="city" value="${escapeHtml(stop.city)}">
+            ${renderDestinationContext(stop.city)}
+          </td>
           <td data-label="Entrada" class="date-cell"><input type="date" data-index="${index}" data-key="start" value="${stop.start}"></td>
           <td data-label="Saida" class="date-cell"><input type="date" data-index="${index}" data-key="end" value="${stop.end}"></td>
           <td data-label="Noites"><strong>${stopNights(stop)}</strong></td>
@@ -1397,11 +1473,13 @@
         const end = parseDate(stop.end);
         const dates = start && end ? `${shortDate.format(start)} → ${shortDate.format(end)}` : "sem data";
         const detail = start ? `${longDate.format(start)} · ${stopNights(stop)} noite(s)` : `${stopNights(stop)} noite(s)`;
+        const info = destinationInfo(stop.city);
         return `
           <button class="stop" data-action="open-costs" data-index="${index}">
             <div class="stop-date">${dates}</div>
             <div>
-              <h3>${escapeHtml(stop.city)}</h3>
+              <h3>${escapeHtml(stop.city)} ${info.flag}</h3>
+              <p>${escapeHtml(info.country)}</p>
               <p>${escapeHtml(detail)} · ${money.format(stopTotal(stop))}</p>
             </div>
           </button>
@@ -1451,8 +1529,14 @@
     function openCostModal(index) {
       const stop = data.stops[index];
       if (!stop) return;
-      el.costModalTitle.textContent = `${stop.city || "Destino"} · ${money.format(stopTotal(stop))}`;
+      const info = destinationInfo(stop.city);
+      el.costModalTitle.textContent = `${stop.city || "Destino"} ${info.flag} · ${money.format(stopTotal(stop))}`;
       el.costModalBody.innerHTML = `
+        <div class="destination-context">
+          <div class="destination-country"><span>${escapeHtml(info.country)}</span></div>
+          <div class="destination-flag">${info.flag}</div>
+          <div class="destination-curiosity">${escapeHtml(info.curiosity)}</div>
+        </div>
         <div class="check">
           ${formatDate(stop.start)} a ${formatDate(stop.end)} · ${stopNights(stop)} noite(s)
         </div>
