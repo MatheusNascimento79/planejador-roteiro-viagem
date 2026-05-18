@@ -175,26 +175,11 @@
       min-width: 1320px;
     }
 
-    th:nth-child(1), td:nth-child(1) { width: 150px; }
-    th:nth-child(2), td:nth-child(2),
-    th:nth-child(3), td:nth-child(3) { width: 150px; }
-    th:nth-child(4), td:nth-child(4) { width: 80px; }
-    th:nth-child(5), td:nth-child(5) { width: 720px; }
-    th:nth-child(6), td:nth-child(6) { width: 140px; }
-    th:nth-child(7), td:nth-child(7) { width: 116px; }
-
-    tr.destination-meta-row td {
-      padding-top: 0;
-    }
-
-    tr.destination-meta-row td:first-child {
-      border-bottom: 1px solid var(--line);
-    }
-
-    tr.destination-meta-row td.empty-meta-cell {
-      padding: 0;
-      border-bottom: 1px solid var(--line);
-    }
+    th:nth-child(1), td:nth-child(1) { width: 450px; }
+    th:nth-child(2), td:nth-child(2) { width: 80px; }
+    th:nth-child(3), td:nth-child(3) { width: 720px; }
+    th:nth-child(4), td:nth-child(4) { width: 140px; }
+    th:nth-child(5), td:nth-child(5) { width: 116px; }
 
     th, td {
       border-bottom: 1px solid var(--line);
@@ -329,6 +314,13 @@
       background: #fbfcfb;
       font-size: 13px;
       line-height: 1.35;
+    }
+
+    .destination-fields {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) repeat(2, minmax(132px, .75fr));
+      gap: 10px;
+      margin-bottom: 10px;
     }
 
     .destination-country {
@@ -722,26 +714,12 @@
         grid-column: 1 / -1;
       }
 
-      tr.destination-meta-row {
-        margin-top: -12px;
-        grid-template-columns: 1fr;
-      }
-
-      tr.destination-meta-row td,
-      tr.destination-meta-row td.empty-meta-cell {
-        display: block;
-        grid-column: 1 / -1;
-        padding: 0;
-        border-bottom: 0;
-      }
-
-      tr.destination-meta-row td::before,
-      tr.destination-meta-row td.empty-meta-cell {
-        display: none;
-      }
-
       .destination-context {
         grid-template-columns: minmax(130px, auto) 56px minmax(0, 1fr);
+      }
+
+      .destination-fields {
+        grid-template-columns: 1fr;
       }
 
       td[data-label="Acoes"]::before {
@@ -835,8 +813,6 @@
               <thead>
                 <tr>
                   <th>Destino</th>
-                  <th>Entrada</th>
-                  <th>Saída</th>
                   <th>Noites</th>
                   <th>Itens</th>
                   <th>Total</th>
@@ -1443,10 +1419,22 @@
       el.rows.innerHTML = data.stops.map((stop, index) => `
         <tr>
           <td data-label="Destino">
-            <input data-index="${index}" data-key="city" value="${escapeHtml(stop.city)}">
+            <div class="destination-fields">
+              <div class="field">
+                <label>Destino</label>
+                <input data-index="${index}" data-key="city" value="${escapeHtml(stop.city)}">
+              </div>
+              <div class="field">
+                <label>Entrada</label>
+                <input type="date" data-index="${index}" data-key="start" value="${stop.start}">
+              </div>
+              <div class="field">
+                <label>Saída</label>
+                <input type="date" data-index="${index}" data-key="end" value="${stop.end}">
+              </div>
+            </div>
+            ${renderDestinationContext(stop.city)}
           </td>
-          <td data-label="Entrada" class="date-cell"><input type="date" data-index="${index}" data-key="start" value="${stop.start}"></td>
-          <td data-label="Saida" class="date-cell"><input type="date" data-index="${index}" data-key="end" value="${stop.end}"></td>
           <td data-label="Noites"><strong>${stopNights(stop)}</strong></td>
           <td data-label="Itens">
             <div class="items-cell">
@@ -1461,10 +1449,6 @@
               <button class="icon-btn" data-action="delete" data-index="${index}" title="Remover">×</button>
             </div>
           </td>
-        </tr>
-        <tr class="destination-meta-row">
-          <td colspan="3" data-label="País e curiosidade">${renderDestinationContext(stop.city)}</td>
-          <td colspan="4" class="empty-meta-cell"></td>
         </tr>
       `).join("");
     }
