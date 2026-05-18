@@ -183,6 +183,19 @@
     th:nth-child(6), td:nth-child(6) { width: 140px; }
     th:nth-child(7), td:nth-child(7) { width: 116px; }
 
+    tr.destination-meta-row td {
+      padding-top: 0;
+    }
+
+    tr.destination-meta-row td:first-child {
+      border-bottom: 1px solid var(--line);
+    }
+
+    tr.destination-meta-row td.empty-meta-cell {
+      padding: 0;
+      border-bottom: 1px solid var(--line);
+    }
+
     th, td {
       border-bottom: 1px solid var(--line);
       padding: 10px;
@@ -307,9 +320,10 @@
 
     .destination-context {
       display: grid;
-      gap: 5px;
-      margin-top: 8px;
-      padding: 9px;
+      grid-template-columns: minmax(130px, auto) 56px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: #fbfcfb;
@@ -708,6 +722,28 @@
         grid-column: 1 / -1;
       }
 
+      tr.destination-meta-row {
+        margin-top: -12px;
+        grid-template-columns: 1fr;
+      }
+
+      tr.destination-meta-row td,
+      tr.destination-meta-row td.empty-meta-cell {
+        display: block;
+        grid-column: 1 / -1;
+        padding: 0;
+        border-bottom: 0;
+      }
+
+      tr.destination-meta-row td::before,
+      tr.destination-meta-row td.empty-meta-cell {
+        display: none;
+      }
+
+      .destination-context {
+        grid-template-columns: minmax(130px, auto) 56px minmax(0, 1fr);
+      }
+
       td[data-label="Acoes"]::before {
         display: none;
       }
@@ -727,6 +763,10 @@
 
     @media (max-width: 620px) {
       tr {
+        grid-template-columns: 1fr;
+      }
+
+      .destination-context {
         grid-template-columns: 1fr;
       }
     }
@@ -1404,7 +1444,6 @@
         <tr>
           <td data-label="Destino">
             <input data-index="${index}" data-key="city" value="${escapeHtml(stop.city)}">
-            ${renderDestinationContext(stop.city)}
           </td>
           <td data-label="Entrada" class="date-cell"><input type="date" data-index="${index}" data-key="start" value="${stop.start}"></td>
           <td data-label="Saida" class="date-cell"><input type="date" data-index="${index}" data-key="end" value="${stop.end}"></td>
@@ -1422,6 +1461,10 @@
               <button class="icon-btn" data-action="delete" data-index="${index}" title="Remover">×</button>
             </div>
           </td>
+        </tr>
+        <tr class="destination-meta-row">
+          <td colspan="3" data-label="País e curiosidade">${renderDestinationContext(stop.city)}</td>
+          <td colspan="4" class="empty-meta-cell"></td>
         </tr>
       `).join("");
     }
