@@ -1105,12 +1105,15 @@
     }
 
     function runAutoSave() {
-      if (!hasPendingAutoSave) return;
+      const hadPendingChanges = hasPendingAutoSave;
       syncDataFromDom();
       localStorage.setItem(storageKey, JSON.stringify(data));
       hasPendingAutoSave = false;
       el.saveState.textContent = "Auto-save local " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      showToast("Salvamento automático", "As alterações foram salvas localmente.");
+      showToast(
+        "Salvamento automático",
+        hadPendingChanges ? "As alterações foram salvas localmente." : "Roteiro conferido e salvo localmente."
+      );
     }
 
     function safeFileName(value) {
