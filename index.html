@@ -761,6 +761,7 @@
         <div class="toolbar">
           <button id="addStop" class="primary" title="Adicionar destino">+ Destino</button>
           <button id="saveShared" title="Salvar roteiro compartilhado">Salvar</button>
+          <button id="refreshShared" title="Atualizar roteiro compartilhado">Atualizar</button>
           <button id="downloadJson" title="Baixar roteiro em JSON">Baixar JSON</button>
           <button id="openFile" title="Abrir JSON salvo">Abrir</button>
           <button id="exportJson" title="Exportar roteiro em Markdown">Exportar</button>
@@ -935,7 +936,11 @@
       { keys: ["lisboa", "lisbon"], country: "Portugal", code: "pt", curiosity: "Lisboa mistura miradouros, bondes históricos, azulejos e bairros cheios de ladeiras." }
     ];
     const autoSaveIntervalMs = 10 * 60 * 1000;
+    const sharedRefreshIntervalMs = 45 * 1000;
     let hasPendingAutoSave = false;
+    let lastSharedSavedAt = "";
+    let deferredSharedSavedAt = "";
+    let isLoadingShared = false;
 
     const el = {
       tripName: document.querySelector("#tripName"),
@@ -1139,11 +1144,14 @@
       showToast("JSON baixado", "Uma cópia local foi salva na sua máquina.");
     }
 
-    async function loadSharedData() {
+    async function loadSharedData(options = {}) {
+      const { force = false, silent = false } = options;
+      if (isLoadingShared) return;
+      isLoadingShared = true;
       try {
         const response = await fetchSharedRoute();
         if (response.status === 404) {
-          el.saveState.textContent = "Roteiro local";
+          if (!silent) el.saveState.textContent = "Roteiro local";
           return;
         }
         if (!response.ok) {
@@ -1152,18 +1160,39 @@
         }
         const payload = await response.json();
         if (!payload?.data?.stops) {
-          el.saveState.textContent = "Roteiro local";
+          if (!silent) el.saveState.textContent = "Roteiro local";
+          return;
+        }
+        const remoteSavedAt = payload.savedAt || "";
+        if (!force && remoteSavedAt && remoteSavedAt === lastSharedSavedAt) {
+          return;
+        }
+        if (!force && hasPendingAutoSave) {
+          el.saveState.textContent = "Alterações locais pendentes";
+          if (remoteSavedAt !== deferredSharedSavedAt) {
+            deferredSharedSavedAt = remoteSavedAt;
+            showToast("Há atualização compartilhada", "Salve ou atualize manualmente antes de substituir suas edições locais.", "error");
+          }
           return;
         }
         data = normalizeData(payload.data);
         localStorage.setItem(storageKey, JSON.stringify(data));
         hasPendingAutoSave = false;
+        lastSharedSavedAt = remoteSavedAt;
+        deferredSharedSavedAt = "";
         render();
-        el.saveState.textContent = "Compartilhado carregado";
-        showToast("Roteiro compartilhado carregado");
+        const savedLabel = remoteSavedAt
+          ? "Compartilhado atualizado " + new Date(remoteSavedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+          : "Compartilhado carregado";
+        el.saveState.textContent = savedLabel;
+        if (!silent) showToast("Roteiro compartilhado carregado");
       } catch (error) {
-        el.saveState.textContent = "Auto-save local ativo";
-        showToast("Não carregou o compartilhado", error.message || "Usando dados locais deste navegador.", "error");
+        if (!silent) {
+          el.saveState.textContent = "Auto-save local ativo";
+          showToast("Não carregou o compartilhado", error.message || "Usando dados locais deste navegador.", "error");
+        }
+      } finally {
+        isLoadingShared = false;
       }
     }
 
@@ -1193,6 +1222,8 @@
         }
         const payload = await response.json();
         hasPendingAutoSave = false;
+        lastSharedSavedAt = payload.savedAt || lastSharedSavedAt;
+        deferredSharedSavedAt = "";
         el.saveState.textContent = "Compartilhado salvo " + new Date(payload.savedAt || Date.now()).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
         showToast("Salvo no JSON compartilhado", "As alterações já estão disponíveis para todos.");
       } catch (error) {
@@ -1200,6 +1231,13 @@
         showToast("Falha ao salvar compartilhado", "O auto-save local continua ativo.", "error");
         alert("Não consegui salvar no JSON compartilhado. Na Vercel, conecte um Vercel Blob Store ao projeto.");
       }
+    }
+
+    function refreshSharedData() {
+      if (hasPendingAutoSave && !confirm("Há alterações locais ainda não salvas no JSON compartilhado. Atualizar agora vai substituir essas edições pelo roteiro compartilhado. Continuar?")) {
+        return;
+      }
+      loadSharedData({ force: true });
     }
 
     function importFile(file) {
@@ -2034,6 +2072,7 @@
 
     document.querySelector("#exportJson").addEventListener("click", exportMarkdownFile);
     document.querySelector("#saveShared").addEventListener("click", saveSharedData);
+    document.querySelector("#refreshShared").addEventListener("click", refreshSharedData);
     document.querySelector("#downloadJson").addEventListener("click", saveToFile);
     document.querySelector("#openFile").addEventListener("click", () => document.querySelector("#fileInput").click());
     document.querySelector("#fileInput").addEventListener("change", (event) => {
@@ -2042,9 +2081,14 @@
     });
     window.addEventListener("beforeunload", flushAutoSave);
     window.setInterval(runAutoSave, autoSaveIntervalMs);
+    window.setInterval(() => loadSharedData({ silent: true }), sharedRefreshIntervalMs);
+    window.addEventListener("focus", () => loadSharedData({ silent: true }));
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) loadSharedData({ silent: true });
+    });
 
     render();
-    loadSharedData();
+    loadSharedData({ force: true, silent: true });
   </script>
 </body>
 </html>
