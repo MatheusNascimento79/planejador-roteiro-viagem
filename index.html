@@ -1451,7 +1451,45 @@
         .toLowerCase() || "viagem-europa-2026";
     }
 
-    function saveToFile() {
+    function safeReadableFileName(value) {
+      return String(value || "")
+        .normalize("NFC")
+        .replace(/[\\/:*?"<>|]+/g, "-")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    }
+
+    function jsonRouteFileName() {
+      const stops = data.stops
+        .map(stop => safeReadableFileName(stop.city))
+        .filter(Boolean);
+      return `${stops.join("-") || safeFileName(data.tripName)}.json`;
+    }
+
+    async function saveBlobWithPicker(blob, suggestedName) {
+      if (!window.showSaveFilePicker) return "unsupported";
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName,
+          types: [{
+            description: "Arquivo JSON",
+            accept: { "application/json": [".json"] }
+          }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return "saved";
+      } catch (error) {
+        if (error?.name === "AbortError") {
+          return "cancelled";
+        }
+        return "unsupported";
+      }
+    }
+
+    async function saveToFile() {
       syncDataFromDom();
       const payload = {
         app: "viagem-europa-2026",
@@ -1460,10 +1498,22 @@
         data
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const fileName = jsonRouteFileName();
+      const pickerResult = await saveBlobWithPicker(blob, fileName);
+      if (pickerResult === "cancelled") {
+        el.saveState.textContent = "Download cancelado";
+        return;
+      }
+      if (pickerResult === "saved") {
+        hasPendingAutoSave = false;
+        el.saveState.textContent = "Arquivo salvo";
+        showToast("JSON salvo", "Uma cópia local foi salva na sua máquina.");
+        return;
+      }
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${safeFileName(data.tripName)}.json`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       link.remove();
