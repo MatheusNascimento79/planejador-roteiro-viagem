@@ -42,12 +42,45 @@
       padding: 9px 12px;
       cursor: pointer;
       min-height: 40px;
+      transition: background-color .14s ease, border-color .14s ease, box-shadow .14s ease, color .14s ease, transform .08s ease;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    button:hover { border-color: var(--teal); }
+    button:hover {
+      border-color: var(--teal);
+      box-shadow: 0 6px 16px rgba(23, 32, 29, .08);
+    }
+
+    button:active {
+      background: var(--mist);
+      border-color: var(--teal);
+      box-shadow: inset 0 2px 6px rgba(23, 32, 29, .13);
+      transform: translateY(1px) scale(.985);
+    }
+
+    button:focus-visible {
+      outline: 3px solid rgba(13, 118, 110, .28);
+      outline-offset: 2px;
+    }
+
+    button:disabled,
+    button[aria-disabled="true"] {
+      cursor: not-allowed;
+      opacity: .55;
+      transform: none;
+      box-shadow: none;
+    }
+
     button.primary {
       background: var(--teal);
       border-color: var(--teal);
+      color: #fff;
+    }
+
+    button.primary:active {
+      background: #095d57;
+      border-color: #095d57;
       color: #fff;
     }
 
