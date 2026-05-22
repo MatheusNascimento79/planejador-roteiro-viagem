@@ -1,6 +1,7 @@
 import { get, list, put } from "@vercel/blob";
 
 const PREFIX = "roteiro/versions/";
+const LATEST_PATHNAME = "roteiro/latest.json";
 
 function send(res, status, body) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -16,6 +17,17 @@ async function blobToText(result) {
   if (result.stream) return new Response(result.stream).text();
   if (result.body) return new Response(result.body).text();
   return "";
+}
+
+async function getBlobOrNull(pathname) {
+  try {
+    const result = await get(pathname, { access: "private" });
+    if (!result || result.statusCode === 404) return null;
+    return result;
+  } catch (error) {
+    if (error?.name === "BlobNotFoundError") return null;
+    throw error;
+  }
 }
 
 async function latestBlobPathname() {
@@ -37,11 +49,15 @@ async function latestBlobPathname() {
 export default async function handler(req, res) {
   if (req.method === "GET") {
     try {
-      const pathname = await latestBlobPathname();
-      if (!pathname) return send(res, 404, { data: null });
-      const result = await get(pathname, { access: "private" });
-      if (!result || result.statusCode === 404) return send(res, 404, { data: null });
-      const data = await blobToText(result);
+      let pathname = LATEST_PATHNAME;
+      let latestResult = await getBlobOrNull(pathname);
+      if (!latestResult) {
+        pathname = await latestBlobPathname();
+        if (!pathname) return send(res, 404, { data: null });
+        latestResult = await getBlobOrNull(pathname);
+      }
+      if (!latestResult) return send(res, 404, { data: null });
+      const data = await blobToText(latestResult);
       if (!data) return send(res, 404, { data: null });
       return send(res, 200, JSON.parse(data));
     } catch (error) {
@@ -67,13 +83,12 @@ export default async function handler(req, res) {
         data: body.data
       };
 
-      const pathname = `${PREFIX}${payload.savedAt.replace(/[:.]/g, "-")}.json`;
-      const blob = await put(pathname, JSON.stringify(payload, null, 2), {
+      const blob = await put(LATEST_PATHNAME, JSON.stringify(payload, null, 2), {
         access: "private",
-        allowOverwrite: false,
+        allowOverwrite: true,
         addRandomSuffix: false,
         contentType: "application/json; charset=utf-8",
-        cacheControlMaxAge: 60
+        cacheControlMaxAge: 0
       });
 
       return send(res, 200, { ok: true, savedAt: payload.savedAt, pathname: blob.pathname, url: blob.url });
