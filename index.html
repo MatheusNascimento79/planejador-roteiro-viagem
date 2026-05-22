@@ -303,6 +303,85 @@
       gap: 6px;
     }
 
+    .destination-table-row > td {
+      padding: 12px;
+    }
+
+    .destination-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .destination-summary {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto auto 20px;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      background: #f6f5ef;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .destination-summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .destination-summary-main {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .destination-summary-main strong {
+      color: var(--ink);
+      font-size: 17px;
+      overflow-wrap: anywhere;
+    }
+
+    .destination-summary-main span,
+    .destination-summary-meta {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .destination-summary-meta {
+      white-space: nowrap;
+      font-weight: 800;
+    }
+
+    .destination-summary::after {
+      content: "⌄";
+      color: var(--teal);
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .destination-card[open] .destination-summary::after {
+      content: "⌃";
+    }
+
+    .destination-card-body {
+      display: grid;
+      grid-template-columns: minmax(320px, .95fr) minmax(0, 1.7fr) minmax(150px, auto);
+      gap: 14px;
+      padding: 14px;
+      align-items: start;
+    }
+
+    .destination-overview,
+    .destination-card-side {
+      display: grid;
+      gap: 10px;
+    }
+
+    .destination-card-side {
+      justify-items: start;
+    }
+
     .destination-context {
       display: grid;
       grid-template-columns: minmax(130px, auto) 56px minmax(0, 1fr);
@@ -692,6 +771,17 @@
       .air-grid,
       .air-fields { grid-template-columns: 1fr; }
       .stop { grid-template-columns: 1fr; }
+      .destination-summary {
+        grid-template-columns: 1fr 20px;
+      }
+      .destination-summary-main,
+      .destination-summary-meta,
+      .destination-summary .total-pill {
+        grid-column: 1 / 2;
+      }
+      .destination-card-body {
+        grid-template-columns: 1fr;
+      }
       .route-day summary { grid-template-columns: 1fr 20px; }
       .route-day-date,
       .route-day-title { grid-column: 1 / 2; }
@@ -1135,9 +1225,18 @@
     }
 
     function updateDestinationContext(stopIndex) {
+      const stop = data.stops[stopIndex];
+      const info = destinationInfo(stop?.city || "");
       const target = document.querySelector(`[data-destination-context="${stopIndex}"]`);
-      if (!target) return;
-      target.innerHTML = renderDestinationContext(data.stops[stopIndex]?.city || "");
+      if (target) target.innerHTML = renderDestinationContext(stop?.city || "");
+      const title = document.querySelector(`[data-destination-title="${stopIndex}"]`);
+      if (title) title.textContent = stop?.city || "Destino";
+      const country = document.querySelector(`[data-destination-country="${stopIndex}"]`);
+      if (country) country.textContent = info.country;
+      const meta = document.querySelector(`[data-destination-meta="${stopIndex}"]`);
+      if (meta) meta.textContent = `${formatDate(stop?.start)} a ${formatDate(stop?.end)} · ${stopNights(stop || { start: "", end: "" })} noite(s)`;
+      const nights = document.querySelector(`[data-destination-nights="${stopIndex}"]`);
+      if (nights) nights.textContent = stopNights(stop || { start: "", end: "" });
     }
 
     function legacyItems(stop, trip) {
@@ -1545,41 +1644,62 @@
     }
 
     function renderRows() {
-      el.rows.innerHTML = data.stops.map((stop, index) => `
-        <tr>
-          <td data-label="Destino">
-            <div class="destination-fields">
-              <div class="field">
-                <label>Destino</label>
-                <input data-index="${index}" data-key="city" value="${escapeHtml(stop.city)}">
+      el.rows.innerHTML = data.stops.map((stop, index) => {
+        const info = destinationInfo(stop.city);
+        return `
+        <tr class="destination-table-row">
+          <td data-label="Destino" colspan="5">
+            <details class="destination-card">
+              <summary class="destination-summary">
+                <span class="destination-summary-main">
+                  <strong data-destination-title="${index}">${escapeHtml(stop.city || "Destino")}</strong>
+                  <span data-destination-country="${index}">${escapeHtml(info.country)}</span>
+                </span>
+                <span class="destination-summary-meta" data-destination-meta="${index}">${formatDate(stop.start)} a ${formatDate(stop.end)} · ${stopNights(stop)} noite(s)</span>
+                <span class="total-pill" data-stop-total="${index}">${money.format(stopTotal(stop))}</span>
+              </summary>
+              <div class="destination-card-body">
+                <div class="destination-overview">
+                  <div class="destination-fields">
+                    <div class="field">
+                      <label>Destino</label>
+                      <input data-index="${index}" data-key="city" value="${escapeHtml(stop.city)}">
+                    </div>
+                    <div class="field">
+                      <label>Entrada</label>
+                      <input type="date" data-index="${index}" data-key="start" value="${stop.start}">
+                    </div>
+                    <div class="field">
+                      <label>Saída</label>
+                      <input type="date" data-index="${index}" data-key="end" value="${stop.end}">
+                    </div>
+                  </div>
+                  <div data-destination-context="${index}">${renderDestinationContext(stop.city)}</div>
+                </div>
+                <div class="items-cell">
+                  ${renderItemGroups(stop, index)}
+                </div>
+                <aside class="destination-card-side">
+                  <div class="metric">
+                    <span>Noites</span>
+                    <strong data-destination-nights="${index}">${stopNights(stop)}</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Total</span>
+                    <strong data-stop-total="${index}">${money.format(stopTotal(stop))}</strong>
+                  </div>
+                  <div class="actions">
+                    <button class="icon-btn" data-action="up" data-index="${index}" title="Subir">↑</button>
+                    <button class="icon-btn" data-action="down" data-index="${index}" title="Descer">↓</button>
+                    <button class="icon-btn" data-action="delete" data-index="${index}" title="Remover">×</button>
+                  </div>
+                </aside>
               </div>
-              <div class="field">
-                <label>Entrada</label>
-                <input type="date" data-index="${index}" data-key="start" value="${stop.start}">
-              </div>
-              <div class="field">
-                <label>Saída</label>
-                <input type="date" data-index="${index}" data-key="end" value="${stop.end}">
-              </div>
-            </div>
-            <div data-destination-context="${index}">${renderDestinationContext(stop.city)}</div>
-          </td>
-          <td data-label="Noites"><strong>${stopNights(stop)}</strong></td>
-          <td data-label="Itens">
-            <div class="items-cell">
-              ${renderItemGroups(stop, index)}
-            </div>
-          </td>
-          <td data-label="Total"><span class="total-pill" data-stop-total="${index}">${money.format(stopTotal(stop))}</span></td>
-          <td data-label="Acoes">
-            <div class="actions">
-              <button class="icon-btn" data-action="up" data-index="${index}" title="Subir">↑</button>
-              <button class="icon-btn" data-action="down" data-index="${index}" title="Descer">↓</button>
-              <button class="icon-btn" data-action="delete" data-index="${index}" title="Remover">×</button>
-            </div>
+            </details>
           </td>
         </tr>
-      `).join("");
+      `;
+      }).join("");
     }
 
     function renderItemGroups(stop, stopIndex) {
@@ -2017,8 +2137,9 @@
       if (!stop || !item) return;
       const itemEl = document.querySelector(`[data-item-total="${stopIndex}:${itemIndex}"]`);
       if (itemEl) itemEl.textContent = money.format(itemAmount(item.text));
-      const stopEl = document.querySelector(`[data-stop-total="${stopIndex}"]`);
-      if (stopEl) stopEl.textContent = money.format(stopTotal(stop));
+      document.querySelectorAll(`[data-stop-total="${stopIndex}"]`).forEach((stopEl) => {
+        stopEl.textContent = money.format(stopTotal(stop));
+      });
       for (const [category] of itemCategories) {
         const categoryEl = document.querySelector(`[data-category-total="${stopIndex}:${category}"]`);
         if (categoryEl) categoryEl.textContent = money.format(categoryTotal(stop, category));
@@ -2039,9 +2160,8 @@
       if (!Number.isInteger(index) || !key) return;
       data.stops[index][key] = target.type === "number" ? numberValue(target.value) : target.value;
       scheduleAutoSave();
-      if (key === "city") updateDestinationContext(index);
-      if (key === "start" || key === "end") render();
-      else renderLivePanels();
+      if (key === "city" || key === "start" || key === "end") updateDestinationContext(index);
+      renderLivePanels();
     }
 
     function updateAirTransport(target) {
@@ -2109,6 +2229,9 @@
     document.querySelector("#rows").addEventListener("input", (event) => {
       if (event.target.tagName === "TEXTAREA") autoSizeTextarea(event.target);
     });
+    document.querySelector("#rows").addEventListener("toggle", (event) => {
+      if (event.target.classList.contains("destination-card")) requestAnimationFrame(autoSizeAllTextareas);
+    }, true);
     document.querySelector("#rows").addEventListener("change", (event) => updateStop(event.target));
     el.airTransport.addEventListener("input", (event) => updateAirTransport(event.target));
     el.airTransport.addEventListener("blur", (event) => {
