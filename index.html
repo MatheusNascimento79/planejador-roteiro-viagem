@@ -101,7 +101,7 @@
 
     .topbar {
       width: 100%;
-      max-width: none;
+      max-width: 1440px;
       margin: 0 auto;
       padding: 16px 22px;
       display: grid;
@@ -132,7 +132,7 @@
 
     main {
       width: 100%;
-      max-width: none;
+      max-width: 1440px;
       margin: 0 auto;
       padding: 22px;
       display: grid;
@@ -442,7 +442,7 @@
 
     .destination-overview {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 116px;
+      grid-template-columns: minmax(0, 1fr) minmax(138px, 160px);
       gap: 12px;
       align-items: stretch;
     }
@@ -456,6 +456,16 @@
       display: grid;
       gap: 10px;
       align-content: start;
+      min-width: 0;
+    }
+
+    .destination-stats .metric {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .destination-stats .metric strong {
+      overflow-wrap: anywhere;
     }
 
     .destination-context {
