@@ -933,7 +933,27 @@
       { keys: ["londres", "london"], country: "Reino Unido", code: "gb", curiosity: "Londres reúne museus gratuitos, parques enormes e bairros com personalidades bem diferentes." },
       { keys: ["madrid"], country: "Espanha", code: "es", curiosity: "Madri é conhecida por seus museus de arte, praças animadas e vida noturna tardia." },
       { keys: ["barcelona"], country: "Espanha", code: "es", curiosity: "Barcelona combina praia, modernismo catalão e obras marcantes de Gaudí." },
-      { keys: ["lisboa", "lisbon"], country: "Portugal", code: "pt", curiosity: "Lisboa mistura miradouros, bondes históricos, azulejos e bairros cheios de ladeiras." }
+      { keys: ["lisboa", "lisbon"], country: "Portugal", code: "pt", curiosity: "Lisboa mistura miradouros, bondes históricos, azulejos e bairros cheios de ladeiras." },
+      { keys: ["porto", "oporto"], country: "Portugal", code: "pt", curiosity: "Porto combina ribeira histórica, caves de vinho e pontes marcantes sobre o Douro." },
+      { keys: ["zurique", "zurich", "zürich"], country: "Suíça", code: "ch", curiosity: "Zurique tem lago, centro antigo compacto e conexões ferroviárias excelentes para explorar a Suíça." },
+      { keys: ["lucerna", "lucerne", "luzern"], country: "Suíça", code: "ch", curiosity: "Lucerna é conhecida pela ponte de madeira Kapellbrücke e pelo acesso rápido ao Monte Pilatus." },
+      { keys: ["interlaken"], country: "Suíça", code: "ch", curiosity: "Interlaken fica entre dois lagos e é uma base clássica para Jungfrau, Lauterbrunnen e Grindelwald." },
+      { keys: ["geneva", "genebra", "geneve", "genève"], country: "Suíça", code: "ch", curiosity: "Genebra reúne lago, organizações internacionais e passeios fáceis pela região dos Alpes." },
+      { keys: ["berlim", "berlin"], country: "Alemanha", code: "de", curiosity: "Berlim mistura história recente, museus importantes e bairros criativos com vida cultural intensa." },
+      { keys: ["frankfurt"], country: "Alemanha", code: "de", curiosity: "Frankfurt é um grande hub ferroviário e aéreo, com centro histórico reconstruído e margem de museus." },
+      { keys: ["colonia", "colônia", "cologne", "koln", "köln"], country: "Alemanha", code: "de", curiosity: "Colônia é marcada pela catedral gótica junto ao Reno e por um centro muito caminhável." },
+      { keys: ["innsbruck"], country: "Áustria", code: "at", curiosity: "Innsbruck fica cercada pelos Alpes e combina centro imperial com acesso rápido a montanhas." },
+      { keys: ["hallstatt"], country: "Áustria", code: "at", curiosity: "Hallstatt é famosa pelo vilarejo à beira do lago, minas de sal e paisagens alpinas." },
+      { keys: ["varsovia", "varsóvia", "warsaw", "warszawa"], country: "Polônia", code: "pl", curiosity: "Varsóvia tem centro antigo reconstruído, parques amplos e museus fortes sobre a história polonesa." },
+      { keys: ["wroclaw", "wrocław", "breslavia", "breslávia"], country: "Polônia", code: "pl", curiosity: "Wrocław é conhecida pelas ilhas, pontes e pequenas esculturas de anões espalhadas pela cidade." },
+      { keys: ["milao", "milão", "milan", "milano"], country: "Itália", code: "it", curiosity: "Milão combina moda, design, catedral monumental e acesso ferroviário eficiente ao norte da Itália." },
+      { keys: ["napoles", "nápoles", "naples", "napoli"], country: "Itália", code: "it", curiosity: "Nápoles é intensa, histórica e uma base natural para Pompeia, Vesúvio e Costa Amalfitana." },
+      { keys: ["bruxelas", "brussels", "bruxelles"], country: "Bélgica", code: "be", curiosity: "Bruxelas mistura arquitetura histórica, quadrinhos, chocolate e instituições europeias." },
+      { keys: ["bruges", "brugge", "brugues"], country: "Bélgica", code: "be", curiosity: "Bruges preserva canais, praças medievais e ruas excelentes para explorar a pé." },
+      { keys: ["bratislava"], country: "Eslováquia", code: "sk", curiosity: "Bratislava fica às margens do Danúbio e é uma parada compacta entre Viena e Budapeste." },
+      { keys: ["liubliana", "ljubljana"], country: "Eslovênia", code: "si", curiosity: "Ljubljana tem centro pequeno, rio cheio de cafés e acesso fácil ao Lago Bled." },
+      { keys: ["zagreb"], country: "Croácia", code: "hr", curiosity: "Zagreb combina cidade alta histórica, cafés e museus curiosos em uma escala fácil de caminhar." },
+      { keys: ["dubrovnik"], country: "Croácia", code: "hr", curiosity: "Dubrovnik é famosa pelas muralhas à beira do Adriático e pelo centro histórico de pedra clara." }
     ];
     const autoSaveIntervalMs = 10 * 60 * 1000;
     const sharedRefreshIntervalMs = 10 * 60 * 1000;
@@ -1037,6 +1057,11 @@
         pl: `<svg viewBox="0 0 3 2" aria-hidden="true"><rect width="3" height="1" fill="#fff"/><rect y="1" width="3" height="1" fill="#dc143c"/></svg>`,
         hu: `<svg viewBox="0 0 3 2" aria-hidden="true"><rect width="3" height=".666" fill="#ce2939"/><rect y=".666" width="3" height=".668" fill="#fff"/><rect y="1.334" width="3" height=".666" fill="#477050"/></svg>`,
         it: `<svg viewBox="0 0 3 2" aria-hidden="true"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg>`,
+        ch: `<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" fill="#d52b1e"/><rect x="13" y="6" width="6" height="20" fill="#fff"/><rect x="6" y="13" width="20" height="6" fill="#fff"/></svg>`,
+        be: `<svg viewBox="0 0 3 2" aria-hidden="true"><rect width="1" height="2" fill="#000"/><rect x="1" width="1" height="2" fill="#fae042"/><rect x="2" width="1" height="2" fill="#ed2939"/></svg>`,
+        sk: `<svg viewBox="0 0 3 2" aria-hidden="true"><rect width="3" height=".666" fill="#fff"/><rect y=".666" width="3" height=".668" fill="#0b4ea2"/><rect y="1.334" width="3" height=".666" fill="#ee1c25"/></svg>`,
+        si: `<svg viewBox="0 0 3 2" aria-hidden="true"><rect width="3" height=".666" fill="#fff"/><rect y=".666" width="3" height=".668" fill="#005da4"/><rect y="1.334" width="3" height=".666" fill="#ed1c24"/></svg>`,
+        hr: `<svg viewBox="0 0 3 2" aria-hidden="true"><rect width="3" height=".666" fill="#f00"/><rect y=".666" width="3" height=".668" fill="#fff"/><rect y="1.334" width="3" height=".666" fill="#171796"/></svg>`,
         cz: `<svg viewBox="0 0 3 2" aria-hidden="true"><rect width="3" height="1" fill="#fff"/><rect y="1" width="3" height="1" fill="#d7141a"/><path d="M0 0 1.5 1 0 2Z" fill="#11457e"/></svg>`,
         gb: `<svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="36" fill="#012169"/><path d="M0 0l60 36M60 0L0 36" stroke="#fff" stroke-width="8"/><path d="M0 0l60 36M60 0L0 36" stroke="#c8102e" stroke-width="4"/><path d="M30 0v36M0 18h60" stroke="#fff" stroke-width="12"/><path d="M30 0v36M0 18h60" stroke="#c8102e" stroke-width="7"/></svg>`,
         es: `<svg viewBox="0 0 3 2" aria-hidden="true"><rect width="3" height=".5" fill="#aa151b"/><rect y=".5" width="3" height="1" fill="#f1bf00"/><rect y="1.5" width="3" height=".5" fill="#aa151b"/></svg>`,
@@ -1055,6 +1080,12 @@
           <div class="destination-curiosity">${escapeHtml(info.curiosity)}</div>
         </div>
       `;
+    }
+
+    function updateDestinationContext(stopIndex) {
+      const target = document.querySelector(`[data-destination-context="${stopIndex}"]`);
+      if (!target) return;
+      target.innerHTML = renderDestinationContext(data.stops[stopIndex]?.city || "");
     }
 
     function legacyItems(stop, trip) {
@@ -1479,7 +1510,7 @@
                 <input type="date" data-index="${index}" data-key="end" value="${stop.end}">
               </div>
             </div>
-            ${renderDestinationContext(stop.city)}
+            <div data-destination-context="${index}">${renderDestinationContext(stop.city)}</div>
           </td>
           <td data-label="Noites"><strong>${stopNights(stop)}</strong></td>
           <td data-label="Itens">
@@ -1949,6 +1980,7 @@
       if (!Number.isInteger(index) || !key) return;
       data.stops[index][key] = target.type === "number" ? numberValue(target.value) : target.value;
       scheduleAutoSave();
+      if (key === "city") updateDestinationContext(index);
       if (key === "start" || key === "end") render();
       else renderLivePanels();
     }
