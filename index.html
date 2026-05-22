@@ -235,15 +235,13 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      table-layout: fixed;
-      min-width: 1320px;
+      table-layout: auto;
+      min-width: 0;
     }
 
-    th:nth-child(1), td:nth-child(1) { width: 450px; }
-    th:nth-child(2), td:nth-child(2) { width: 80px; }
-    th:nth-child(3), td:nth-child(3) { width: 720px; }
-    th:nth-child(4), td:nth-child(4) { width: 140px; }
-    th:nth-child(5), td:nth-child(5) { width: 116px; }
+    .table-wrap thead {
+      display: none;
+    }
 
     th, td {
       border-bottom: 1px solid var(--line);
@@ -436,20 +434,28 @@
 
     .destination-card-body {
       display: grid;
-      grid-template-columns: minmax(320px, .95fr) minmax(0, 1.7fr) minmax(150px, auto);
+      grid-template-columns: 1fr;
       gap: 14px;
       padding: 14px;
       align-items: start;
     }
 
-    .destination-overview,
-    .destination-card-side {
+    .destination-overview {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 116px;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .destination-overview-main {
       display: grid;
       gap: 10px;
     }
 
-    .destination-card-side {
-      justify-items: start;
+    .destination-stats {
+      display: grid;
+      gap: 10px;
+      align-content: start;
     }
 
     .destination-context {
@@ -894,6 +900,9 @@
         grid-column: 1 / 2;
       }
       .destination-card-body {
+        grid-template-columns: 1fr;
+      }
+      .destination-overview {
         grid-template-columns: 1fr;
       }
       .route-day summary { grid-template-columns: 1fr 20px; }
@@ -1796,35 +1805,37 @@
               </summary>
               <div class="destination-card-body">
                 <div class="destination-overview">
-                  <div class="destination-fields">
-                    <div class="field">
-                      <label>Destino</label>
-                      <input data-index="${index}" data-key="city" value="${escapeHtml(stop.city)}">
+                  <div class="destination-overview-main">
+                    <div class="destination-fields">
+                      <div class="field">
+                        <label>Destino</label>
+                        <input data-index="${index}" data-key="city" value="${escapeHtml(stop.city)}">
+                      </div>
+                      <div class="field">
+                        <label>Entrada</label>
+                        <input type="date" data-index="${index}" data-key="start" value="${stop.start}">
+                      </div>
+                      <div class="field">
+                        <label>Saída</label>
+                        <input type="date" data-index="${index}" data-key="end" value="${stop.end}">
+                      </div>
                     </div>
-                    <div class="field">
-                      <label>Entrada</label>
-                      <input type="date" data-index="${index}" data-key="start" value="${stop.start}">
+                    <div data-destination-context="${index}">${renderDestinationContext(stop.city)}</div>
+                  </div>
+                  <div class="destination-stats">
+                    <div class="metric">
+                      <span>Noites</span>
+                      <strong data-destination-nights="${index}">${stopNights(stop)}</strong>
                     </div>
-                    <div class="field">
-                      <label>Saída</label>
-                      <input type="date" data-index="${index}" data-key="end" value="${stop.end}">
+                    <div class="metric">
+                      <span>Total</span>
+                      <strong data-stop-total="${index}">${money.format(stopTotal(stop))}</strong>
                     </div>
                   </div>
-                  <div data-destination-context="${index}">${renderDestinationContext(stop.city)}</div>
                 </div>
                 <div class="items-cell">
                   ${renderItemGroups(stop, index)}
                 </div>
-                <aside class="destination-card-side">
-                  <div class="metric">
-                    <span>Noites</span>
-                    <strong data-destination-nights="${index}">${stopNights(stop)}</strong>
-                  </div>
-                  <div class="metric">
-                    <span>Total</span>
-                    <strong data-stop-total="${index}">${money.format(stopTotal(stop))}</strong>
-                  </div>
-                </aside>
               </div>
             </details>
           </td>
