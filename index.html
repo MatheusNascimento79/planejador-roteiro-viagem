@@ -165,6 +165,30 @@
       justify-content: flex-end;
     }
 
+    .section-toggle {
+      padding: 0;
+    }
+
+    .section-toggle > summary.section-head {
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .section-toggle > summary.section-head::-webkit-details-marker {
+      display: none;
+    }
+
+    .section-toggle > summary.section-head::after {
+      content: "⌄";
+      color: var(--teal);
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .section-toggle[open] > summary.section-head::after {
+      content: "⌃";
+    }
+
     h2 {
       margin: 0;
       font-size: 18px;
@@ -1047,15 +1071,17 @@
           </section>
 
           <section class="technical-summary">
-            <div class="section-head">
-              <h2>Roteiro Final Geral</h2>
-              <div class="section-actions">
-                <button id="collapseFinalRoute" title="Colapsar todos os dias">Colapsar tudo</button>
-                <button id="expandFinalRoute" title="Expandir todos os dias">Expandir tudo</button>
-                <button id="exportPdf" title="Exportar roteiro detalhado em PDF">PDF</button>
-              </div>
-            </div>
-            <div class="panel-body route-final" id="finalRoute"></div>
+            <details class="section-toggle" id="finalRouteSection">
+              <summary class="section-head">
+                <h2>Roteiro Final Geral</h2>
+                <div class="section-actions">
+                  <button id="collapseFinalRoute" title="Colapsar todos os dias">Colapsar tudo</button>
+                  <button id="expandFinalRoute" title="Expandir todos os dias">Expandir tudo</button>
+                  <button id="exportPdf" title="Exportar roteiro detalhado em PDF">PDF</button>
+                </div>
+              </summary>
+              <div class="panel-body route-final" id="finalRoute"></div>
+            </details>
           </section>
 
           <section class="technical-summary">
@@ -2549,9 +2575,22 @@
     });
 
     document.querySelector("#exportJson").addEventListener("click", exportMarkdownFile);
-    document.querySelector("#collapseFinalRoute").addEventListener("click", () => setFinalRouteExpanded(false));
-    document.querySelector("#expandFinalRoute").addEventListener("click", () => setFinalRouteExpanded(true));
-    document.querySelector("#exportPdf").addEventListener("click", exportPdfFile);
+    document.querySelector("#collapseFinalRoute").addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setFinalRouteExpanded(false);
+    });
+    document.querySelector("#expandFinalRoute").addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      document.querySelector("#finalRouteSection").open = true;
+      setFinalRouteExpanded(true);
+    });
+    document.querySelector("#exportPdf").addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      exportPdfFile();
+    });
     document.querySelector("#saveShared").addEventListener("click", saveSharedData);
     document.querySelector("#refreshShared").addEventListener("click", refreshSharedData);
     document.querySelector("#downloadJson").addEventListener("click", saveToFile);
