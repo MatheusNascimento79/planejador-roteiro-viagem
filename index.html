@@ -158,6 +158,13 @@
       border-bottom: 1px solid var(--line);
     }
 
+    .section-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
     h2 {
       margin: 0;
       font-size: 18px;
@@ -1042,6 +1049,11 @@
           <section class="technical-summary">
             <div class="section-head">
               <h2>Roteiro Final Geral</h2>
+              <div class="section-actions">
+                <button id="collapseFinalRoute" title="Colapsar todos os dias">Colapsar tudo</button>
+                <button id="expandFinalRoute" title="Expandir todos os dias">Expandir tudo</button>
+                <button id="exportPdf" title="Exportar roteiro detalhado em PDF">PDF</button>
+              </div>
             </div>
             <div class="panel-body route-final" id="finalRoute"></div>
           </section>
@@ -2061,6 +2073,118 @@
       `).join("");
     }
 
+    function setFinalRouteExpanded(expanded) {
+      document.querySelectorAll("#finalRoute .route-day").forEach((day) => {
+        day.open = expanded;
+      });
+    }
+
+    function printStyles() {
+      return `
+        body { color: #17201d; font-family: Arial, sans-serif; line-height: 1.45; margin: 28px; }
+        h1 { font-size: 28px; margin: 0 0 6px; }
+        h2 { border-bottom: 1px solid #d8dfdb; font-size: 20px; margin: 28px 0 10px; padding-bottom: 6px; }
+        h3 { font-size: 16px; margin: 18px 0 8px; }
+        h4 { color: #0d766e; font-size: 14px; margin: 14px 0 6px; }
+        p, li { font-size: 12px; }
+        table { border-collapse: collapse; margin: 8px 0 16px; width: 100%; }
+        th, td { border: 1px solid #d8dfdb; font-size: 11px; padding: 6px; text-align: left; vertical-align: top; }
+        th { background: #f6f5ef; }
+        .muted { color: #60706b; }
+        .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0; }
+        .metric { border: 1px solid #d8dfdb; border-radius: 6px; padding: 9px; }
+        .metric span { color: #60706b; display: block; font-size: 10px; text-transform: uppercase; }
+        .metric strong { display: block; font-size: 15px; margin-top: 4px; }
+        .page-break { break-before: page; }
+        @media print { button { display: none; } body { margin: 18mm; } }
+      `;
+    }
+
+    function buildPdfHtml() {
+      syncDataFromDom();
+      const sum = totals();
+      const days = buildFinalRouteDays();
+      const exportedAt = new Date().toLocaleString("pt-BR");
+      const airRows = [
+        ["Ida", data.airTransport.outbound],
+        ["Volta", data.airTransport.inbound]
+      ].map(([label, item]) => `
+        <tr>
+          <td>${label}</td>
+          <td>${formatDate(item.departureDate)}</td>
+          <td>${escapeHtml(item.origin || "-")}</td>
+          <td>${escapeHtml(item.destination || "-")}</td>
+          <td>${escapeHtml(item.company || "-")}</td>
+          <td>${money.format(numberValue(item.cost))}</td>
+        </tr>
+      `).join("");
+      const dayHtml = days.map(day => `
+        <section>
+          <h3>${formatDate(day.date)}</h3>
+          <ul>${day.items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        </section>
+      `).join("");
+      const stopHtml = data.stops.map((stop, index) => `
+        <section class="page-break">
+          <h2>${index + 1}. ${escapeHtml(stop.city || "Destino sem nome")}</h2>
+          <p class="muted">${formatDate(stop.start)} a ${formatDate(stop.end)} · ${stopNights(stop)} noite(s) · Total ${money.format(stopTotal(stop))}</p>
+          ${itemCategories.map(([category, label]) => {
+            const items = (stop.items || []).filter(item => item.category === category);
+            return `
+              <h3>${label} · ${money.format(categoryTotal(stop, category))}</h3>
+              <table>
+                <thead><tr><th>Item</th><th>Valor lido</th></tr></thead>
+                <tbody>
+                  ${items.length ? items.map(item => `
+                    <tr><td>${escapeHtml(item.text || "Item sem descrição").replace(/\n/g, "<br>")}</td><td>${money.format(itemAmount(item.text))}</td></tr>
+                  `).join("") : `<tr><td>Sem itens.</td><td>${money.format(0)}</td></tr>`}
+                </tbody>
+              </table>
+            `;
+          }).join("")}
+        </section>
+      `).join("");
+      return `<!doctype html>
+        <html lang="pt-BR">
+          <head>
+            <meta charset="utf-8">
+            <title>${escapeHtml(data.tripName || "Roteiro de viagem")}</title>
+            <style>${printStyles()}</style>
+          </head>
+          <body>
+            <h1>${escapeHtml(data.tripName || "Roteiro de viagem")}</h1>
+            <p class="muted">Exportado em ${escapeHtml(exportedAt)}</p>
+            <div class="metric-grid">
+              <div class="metric"><span>Pessoas</span><strong>${data.travelers}</strong></div>
+              <div class="metric"><span>Total estimado</span><strong>${money.format(sum.min)}</strong></div>
+              <div class="metric"><span>Dias</span><strong>${tripDays()}</strong></div>
+              <div class="metric"><span>Noites</span><strong>${sum.nights}</strong></div>
+            </div>
+            <h2>Transporte aéreo</h2>
+            <table>
+              <thead><tr><th>Trecho</th><th>Data</th><th>Origem</th><th>Destino</th><th>Companhia</th><th>Custo</th></tr></thead>
+              <tbody>${airRows}</tbody>
+            </table>
+            <h2>Roteiro final geral</h2>
+            ${dayHtml || "<p>Sem roteiro final gerado.</p>"}
+            ${stopHtml}
+          </body>
+        </html>`;
+    }
+
+    function exportPdfFile() {
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        showToast("Não foi possível abrir o PDF", "Libere pop-ups para gerar a impressão em PDF.", "error");
+        return;
+      }
+      printWindow.document.open();
+      printWindow.document.write(buildPdfHtml());
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.setTimeout(() => printWindow.print(), 300);
+    }
+
     function buildMarkdownExport() {
       const sum = totals();
       const exportedAt = new Date().toLocaleString("pt-BR");
@@ -2425,6 +2549,9 @@
     });
 
     document.querySelector("#exportJson").addEventListener("click", exportMarkdownFile);
+    document.querySelector("#collapseFinalRoute").addEventListener("click", () => setFinalRouteExpanded(false));
+    document.querySelector("#expandFinalRoute").addEventListener("click", () => setFinalRouteExpanded(true));
+    document.querySelector("#exportPdf").addEventListener("click", exportPdfFile);
     document.querySelector("#saveShared").addEventListener("click", saveSharedData);
     document.querySelector("#refreshShared").addEventListener("click", refreshSharedData);
     document.querySelector("#downloadJson").addEventListener("click", saveToFile);
