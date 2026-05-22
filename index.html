@@ -1105,6 +1105,7 @@
     let deferredSharedSavedAt = "";
     let isLoadingShared = false;
     let lastSharedRefreshAttempt = 0;
+    let openDestinationIndexes = new Set();
 
     const el = {
       tripName: document.querySelector("#tripName"),
@@ -1370,7 +1371,7 @@
         hasPendingAutoSave = false;
         lastSharedSavedAt = remoteSavedAt;
         deferredSharedSavedAt = "";
-        render();
+        render({ preserveOpenDestinations: true, preserveScroll: silent });
         const savedLabel = remoteSavedAt
           ? "Compartilhado atualizado " + new Date(remoteSavedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
           : "Compartilhado carregado";
@@ -1649,7 +1650,7 @@
         return `
         <tr class="destination-table-row">
           <td data-label="Destino" colspan="5">
-            <details class="destination-card">
+            <details class="destination-card" data-index="${index}" ${openDestinationIndexes.has(index) ? "open" : ""}>
               <summary class="destination-summary">
                 <span class="destination-summary-main">
                   <strong data-destination-title="${index}">${escapeHtml(stop.city || "Destino")}</strong>
@@ -2100,7 +2101,19 @@
       showToast("Markdown exportado", "O arquivo .md foi salvo na sua máquina.");
     }
 
-    function render() {
+    function captureOpenDestinations() {
+      openDestinationIndexes = new Set(
+        Array.from(document.querySelectorAll(".destination-card[open]"))
+          .map(card => Number(card.dataset.index))
+          .filter(Number.isInteger)
+      );
+    }
+
+    function render(options = {}) {
+      const { preserveOpenDestinations = false, preserveScroll = false } = options;
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
+      if (preserveOpenDestinations) captureOpenDestinations();
       renderSettings();
       renderAirTransport();
       renderMetrics();
@@ -2110,7 +2123,10 @@
       renderCostSummary();
       renderFinalRoute();
       renderExport();
-      requestAnimationFrame(autoSizeAllTextareas);
+      requestAnimationFrame(() => {
+        autoSizeAllTextareas();
+        if (preserveScroll) window.scrollTo(scrollX, scrollY);
+      });
     }
 
     function renderLivePanels() {
@@ -2176,29 +2192,46 @@
     function moveStop(index, direction) {
       const next = index + direction;
       if (next < 0 || next >= data.stops.length) return;
+      captureOpenDestinations();
       const [item] = data.stops.splice(index, 1);
       data.stops.splice(next, 0, item);
+      const nextOpen = new Set();
+      openDestinationIndexes.forEach((openIndex) => {
+        if (openIndex === index) nextOpen.add(next);
+        else if (openIndex === next) nextOpen.add(index);
+        else nextOpen.add(openIndex);
+      });
+      openDestinationIndexes = nextOpen;
       scheduleAutoSave();
-      render();
+      render({ preserveScroll: true });
     }
 
     function deleteStop(index) {
+      captureOpenDestinations();
       data.stops.splice(index, 1);
+      const nextOpen = new Set();
+      openDestinationIndexes.forEach((openIndex) => {
+        if (openIndex < index) nextOpen.add(openIndex);
+        if (openIndex > index) nextOpen.add(openIndex - 1);
+      });
+      openDestinationIndexes = nextOpen;
       scheduleAutoSave();
-      render();
+      render({ preserveScroll: true });
     }
 
     function addItem(index, category) {
       data.stops[index].items = data.stops[index].items || [];
       data.stops[index].items.push({ category, text: "" });
+      openDestinationIndexes.add(index);
       scheduleAutoSave();
-      render();
+      render({ preserveScroll: true });
     }
 
     function deleteItem(index, itemIndex) {
       data.stops[index].items.splice(itemIndex, 1);
+      openDestinationIndexes.add(index);
       scheduleAutoSave();
-      render();
+      render({ preserveScroll: true });
     }
 
     function moveItem(index, itemIndex, direction) {
@@ -2213,8 +2246,9 @@
       const swapIndex = sameCategoryIndexes[position + direction];
       if (swapIndex === undefined) return;
       [items[itemIndex], items[swapIndex]] = [items[swapIndex], items[itemIndex]];
+      openDestinationIndexes.add(index);
       scheduleAutoSave();
-      render();
+      render({ preserveScroll: true });
     }
 
     function escapeHtml(value) {
@@ -2230,7 +2264,13 @@
       if (event.target.tagName === "TEXTAREA") autoSizeTextarea(event.target);
     });
     document.querySelector("#rows").addEventListener("toggle", (event) => {
-      if (event.target.classList.contains("destination-card")) requestAnimationFrame(autoSizeAllTextareas);
+      if (!event.target.classList.contains("destination-card")) return;
+      const index = Number(event.target.dataset.index);
+      if (Number.isInteger(index)) {
+        if (event.target.open) openDestinationIndexes.add(index);
+        else openDestinationIndexes.delete(index);
+      }
+      requestAnimationFrame(autoSizeAllTextareas);
     }, true);
     document.querySelector("#rows").addEventListener("change", (event) => updateStop(event.target));
     el.airTransport.addEventListener("input", (event) => updateAirTransport(event.target));
@@ -2265,7 +2305,7 @@
       el[key].addEventListener("input", (event) => {
         data[key] = key === "travelers" || key === "eurRate" ? numberValue(event.target.value) : event.target.value;
         scheduleAutoSave();
-        render();
+        render({ preserveOpenDestinations: true, preserveScroll: true });
       });
     });
 
@@ -2281,13 +2321,15 @@
           { category: "food", text: "" }
         ]
       });
+      openDestinationIndexes.add(data.stops.length - 1);
       scheduleAutoSave();
-      render();
+      render({ preserveScroll: true });
     });
 
     document.querySelector("#resetData").addEventListener("click", () => {
       if (!confirm("Voltar ao modelo inicial?")) return;
       data = structuredClone(initialData);
+      openDestinationIndexes.clear();
       saveData();
       render();
     });
