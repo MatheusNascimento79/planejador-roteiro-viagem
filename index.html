@@ -1460,15 +1460,23 @@
         .replace(/^-+|-+$/g, "");
     }
 
+    function routeCityNamesForFile() {
+      const domCities = Array.from(document.querySelectorAll("#rows [data-key='city']"))
+        .map(input => input.value)
+        .filter(value => value.trim());
+      if (domCities.length) return domCities;
+      return data.stops.map(stop => stop.city).filter(value => String(value || "").trim());
+    }
+
     function jsonRouteFileName() {
-      const stops = data.stops
-        .map(stop => safeReadableFileName(stop.city))
+      const stops = routeCityNamesForFile()
+        .map(city => safeReadableFileName(city))
         .filter(Boolean);
       return `${stops.join("-") || safeFileName(data.tripName)}.json`;
     }
 
     async function saveBlobWithPicker(blob, suggestedName) {
-      if (!window.showSaveFilePicker) return "unsupported";
+      if (!window.showSaveFilePicker || !window.isSecureContext) return "unsupported";
       try {
         const handle = await window.showSaveFilePicker({
           suggestedName,
@@ -1507,7 +1515,7 @@
       if (pickerResult === "saved") {
         hasPendingAutoSave = false;
         el.saveState.textContent = "Arquivo salvo";
-        showToast("JSON salvo", "Uma cópia local foi salva na sua máquina.");
+        showToast("JSON salvo", fileName);
         return;
       }
       const url = URL.createObjectURL(blob);
@@ -1520,7 +1528,7 @@
       URL.revokeObjectURL(url);
       hasPendingAutoSave = false;
       el.saveState.textContent = "Arquivo salvo";
-      showToast("JSON baixado", "Uma cópia local foi salva na sua máquina.");
+      showToast("JSON baixado", fileName);
     }
 
     async function loadSharedData(options = {}) {
