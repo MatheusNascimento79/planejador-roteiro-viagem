@@ -655,22 +655,61 @@
     .air-card {
       border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 12px;
       background: #fbfcfb;
+      overflow: hidden;
     }
 
-    .air-card h3 {
-      margin: 0 0 12px;
+    .air-summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto 20px;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      background: #f6f5ef;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .air-summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .air-summary-main {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .air-summary-main strong {
       color: var(--teal);
       font-size: 14px;
       text-transform: uppercase;
       letter-spacing: .06em;
     }
 
+    .air-summary-main span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+
+    .air-summary::after {
+      content: "⌄";
+      color: var(--teal);
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .air-card[open] .air-summary::after {
+      content: "⌃";
+    }
+
     .air-fields {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
+      padding: 12px;
     }
 
     .modal-backdrop {
@@ -776,6 +815,8 @@
       .trip-settings { grid-template-columns: 1fr 1fr; }
       .air-grid,
       .air-fields { grid-template-columns: 1fr; }
+      .air-summary { grid-template-columns: 1fr 20px; }
+      .air-summary .total-pill { grid-column: 1 / 2; }
       .stop { grid-template-columns: 1fr; }
       .destination-summary {
         grid-template-columns: 1fr 20px;
@@ -1115,6 +1156,7 @@
     let isLoadingShared = false;
     let lastSharedRefreshAttempt = 0;
     let openDestinationIndexes = new Set();
+    let openAirCards = new Set();
 
     const el = {
       tripName: document.querySelector("#tripName"),
@@ -1380,7 +1422,7 @@
         hasPendingAutoSave = false;
         lastSharedSavedAt = remoteSavedAt;
         deferredSharedSavedAt = "";
-        render({ preserveOpenDestinations: true, preserveScroll: silent });
+        render({ preserveOpenDestinations: true, preserveOpenAirCards: true, preserveScroll: silent });
         const savedLabel = remoteSavedAt
           ? "Compartilhado atualizado " + new Date(remoteSavedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
           : "Compartilhado carregado";
@@ -1583,9 +1625,17 @@
         ["inbound", "Volta"]
       ].map(([direction, label]) => {
         const item = data.airTransport[direction];
+        const route = [item.origin, item.destination].filter(Boolean).join(" → ") || "Origem e destino a definir";
+        const details = [formatDate(item.departureDate), item.company].filter(value => value && value !== "sem data").join(" · ") || "Data e companhia a definir";
         return `
-          <div class="air-card">
-            <h3>${label}</h3>
+          <details class="air-card" data-air-card="${direction}" ${openAirCards.has(direction) ? "open" : ""}>
+            <summary class="air-summary">
+              <span class="air-summary-main">
+                <strong>${label}</strong>
+                <span data-air-summary="${direction}">${escapeHtml(route)} · ${escapeHtml(details)}</span>
+              </span>
+              <span class="total-pill" data-air-total="${direction}">${money.format(numberValue(item.cost))}</span>
+            </summary>
             <div class="air-fields">
               <div class="field">
                 <label>Data de embarque</label>
@@ -1608,7 +1658,7 @@
                 <input inputmode="decimal" data-air="${direction}" data-air-key="cost" value="${escapeHtml(formatCurrencyInput(item.cost))}">
               </div>
             </div>
-          </div>
+          </details>
         `;
       }).join("");
     }
@@ -2118,11 +2168,20 @@
       );
     }
 
+    function captureOpenAirCards() {
+      openAirCards = new Set(
+        Array.from(document.querySelectorAll(".air-card[open]"))
+          .map(card => card.dataset.airCard)
+          .filter(Boolean)
+      );
+    }
+
     function render(options = {}) {
-      const { preserveOpenDestinations = false, preserveScroll = false } = options;
+      const { preserveOpenDestinations = false, preserveOpenAirCards = false, preserveScroll = false } = options;
       const scrollX = window.scrollX;
       const scrollY = window.scrollY;
       if (preserveOpenDestinations) captureOpenDestinations();
+      if (preserveOpenAirCards) captureOpenAirCards();
       renderSettings();
       renderAirTransport();
       renderMetrics();
@@ -2195,7 +2254,19 @@
       if (!direction || !key) return;
       data.airTransport[direction][key] = key === "cost" ? parseCurrencyInput(target.value) : target.value;
       scheduleAutoSave();
+      updateAirSummary(direction);
       renderLivePanels();
+    }
+
+    function updateAirSummary(direction) {
+      const item = data.airTransport[direction];
+      if (!item) return;
+      const route = [item.origin, item.destination].filter(Boolean).join(" → ") || "Origem e destino a definir";
+      const details = [formatDate(item.departureDate), item.company].filter(value => value && value !== "sem data").join(" · ") || "Data e companhia a definir";
+      const summary = document.querySelector(`[data-air-summary="${direction}"]`);
+      if (summary) summary.textContent = `${route} · ${details}`;
+      const total = document.querySelector(`[data-air-total="${direction}"]`);
+      if (total) total.textContent = money.format(numberValue(item.cost));
     }
 
     function moveStop(index, direction) {
@@ -2282,6 +2353,13 @@
       requestAnimationFrame(autoSizeAllTextareas);
     }, true);
     document.querySelector("#rows").addEventListener("change", (event) => updateStop(event.target));
+    el.airTransport.addEventListener("toggle", (event) => {
+      if (!event.target.classList.contains("air-card")) return;
+      const direction = event.target.dataset.airCard;
+      if (!direction) return;
+      if (event.target.open) openAirCards.add(direction);
+      else openAirCards.delete(direction);
+    }, true);
     el.airTransport.addEventListener("input", (event) => updateAirTransport(event.target));
     el.airTransport.addEventListener("blur", (event) => {
       if (event.target.dataset.airKey === "cost") event.target.value = formatCurrencyInput(parseCurrencyInput(event.target.value));
@@ -2316,7 +2394,7 @@
       el[key].addEventListener("input", (event) => {
         data[key] = key === "travelers" || key === "eurRate" ? numberValue(event.target.value) : event.target.value;
         scheduleAutoSave();
-        render({ preserveOpenDestinations: true, preserveScroll: true });
+        render({ preserveOpenDestinations: true, preserveOpenAirCards: true, preserveScroll: true });
       });
     });
 
@@ -2341,6 +2419,7 @@
       if (!confirm("Voltar ao modelo inicial?")) return;
       data = structuredClone(initialData);
       openDestinationIndexes.clear();
+      openAirCards.clear();
       saveData();
       render();
     });
